@@ -1,0 +1,127 @@
+<title>세이노의 가르침 마인드맵</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@400;600;800&display=swap">
+<style>
+/* Layout: radial mind map on a ledger-paper ground, detail panel beside it (stacks under on phones) */
+:root{
+  --bg:#eef0ec; --paper:#f8f9f6; --ink:#16191c; --muted:#5d6560; --line:#c9cec8;
+  --accent:#1d47c9; --mark:#f1c232; --accent-ink:#ffffff;
+  --display:"Black Han Sans","Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --body:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121512; --paper:#1a1e1b; --ink:#e9ece7; --muted:#9aa39c; --line:#353b36;
+  --accent:#7d9bff; --mark:#e0b42a; --accent-ink:#0d1020; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121512; --paper:#1a1e1b; --ink:#e9ece7; --muted:#9aa39c; --line:#353b36;
+  --accent:#7d9bff; --mark:#e0b42a; --accent-ink:#0d1020; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,5vw,44px);line-height:1.15;margin:0;text-wrap:balance}
+header h1 span{background:linear-gradient(transparent 62%,var(--mark) 62%)}
+header p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.map{background:var(--paper);border:1px solid var(--line);border-radius:6px;overflow-x:auto;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% 32px;background-position:0 -1px}
+.map svg{display:block;width:100%;min-width:680px;height:auto}
+.edge{stroke:var(--line);fill:none;stroke-width:2}
+.edge.leaf{stroke-width:1.2}
+.edge.on{stroke:var(--accent)}
+.center rect{fill:var(--ink)} .center text{fill:var(--paper);font-family:var(--display);font-size:30px}
+.br{cursor:pointer}
+.br rect{fill:var(--paper);stroke:var(--ink);stroke-width:2}
+.br text{fill:var(--ink);font-family:var(--body);font-weight:800;font-size:17px}
+.br.on rect,.br:hover rect{fill:var(--accent);stroke:var(--accent)}
+.br.on text,.br:hover text{fill:var(--accent-ink)}
+.br:focus{outline:none} .br:focus-visible rect{stroke:var(--mark);stroke-width:4}
+.lf circle{fill:var(--muted)} .lf text{fill:var(--muted);font-size:14px;font-family:var(--body)}
+.lf.on circle{fill:var(--accent)} .lf.on text{fill:var(--ink);font-weight:600}
+aside{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+aside .eyebrow{font-size:12px;letter-spacing:.08em;color:var(--muted);font-weight:600}
+aside h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-height:1.2}
+aside .sum{margin:0}
+aside ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+aside li{border-top:1px solid var(--line);padding-top:10px}
+aside li b{display:block}
+aside li span{color:var(--muted);font-size:13.5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:600 13px var(--body);border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:4px 11px;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chips button:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+footer{color:var(--muted);font-size:12.5px;max-width:70ch}
+@media (prefers-reduced-motion:no-preference){.edge,.br rect,.lf circle{transition:stroke .2s,fill .2s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1><span>세이노의 가르침</span> 마인드맵</h1>
+    <p>익명의 자수성가 사업가 세이노가 수십 년간 써 온 글을 엮은 책의 핵심 주제를 일곱 갈래로 정리했습니다. 가지를 누르면 오른쪽에 세부 내용이 나옵니다.</p>
+  </header>
+  <div class="chips" id="chips" role="toolbar" aria-label="주제 선택"></div>
+  <div class="grid">
+    <div class="map"><svg id="svg" viewBox="0 0 1200 860" role="img" aria-label="세이노의 가르침 마인드맵"></svg></div>
+    <aside id="panel" aria-live="polite"></aside>
+  </div>
+  <footer>책의 장 구성을 그대로 옮긴 것이 아니라, 책 전반에 반복되는 메시지를 주제별로 묶은 요약입니다. 원문 표현은 책에서 확인하세요.</footer>
+</div>
+
+<script>
+const DATA=[
+ {t:"저자와 책",s:"세이노(SayNo)는 필명입니다. 맨손으로 시작해 큰 부를 이룬 사업가로 알려져 있고, 2000년대 초부터 칼럼과 인터넷 글로 독자와 만나 왔습니다.",
+  l:[["익명의 자수성가","얼굴과 실명을 밝히지 않은 채 경험만으로 말합니다."],["무료로 공개된 글","오랫동안 온라인 카페 등에 무료로 공유되던 글이 원본입니다."],["2023년 단행본","독자들이 엮어 오던 글이 정식 책으로 출간되어 장기 베스트셀러가 되었습니다."],["수익의 사회 환원","저자는 책 수익을 기부하겠다는 뜻을 밝혔습니다."]]},
+ {t:"삶의 태도",s:"책 전체를 관통하는 메시지는 '내 인생은 내 책임'이라는 것입니다. 환경과 운을 탓하는 순간 바뀔 여지가 사라진다고 봅니다.",
+  l:[["남 탓 금지","부모·사회·운을 원망하는 대신 지금 할 수 있는 일을 찾으라고 말합니다."],["현실 직시","듣기 좋은 위로보다 냉정한 현실 인식을 먼저 요구합니다."],["치열하게 살기","편하게 살면서 다른 결과를 바라지 말라는 직설이 많습니다."],["작은 실천부터","거창한 결심보다 오늘의 습관을 바꾸는 것을 강조합니다."]]},
+ {t:"일과 직장",s:"월급을 받는 동안에도 주인의 시각으로 일하면 그 경험이 결국 자기 자산이 된다는 관점입니다.",
+  l:[["주인처럼 일하기","회사 일을 내 사업처럼 다루면 배우는 양이 달라집니다."],["전문가가 되라","자기 분야에서 대체하기 어려운 사람이 되는 것이 목표입니다."],["시키지 않은 일","기대 이상을 해내는 사람에게 기회가 몰립니다."],["몸값은 실력으로","연봉 협상보다 실력과 성과로 증명하라고 합니다."]]},
+ {t:"돈과 부",s:"부자가 되는 길은 화려한 투자 비법이 아니라 지출 통제, 종잣돈, 그리고 돈이 흐르는 구조를 이해하는 데서 시작한다고 말합니다.",
+  l:[["종잣돈 먼저","작은 돈을 모으는 습관 없이는 큰돈도 지키지 못합니다."],["소비 통제","남에게 보이기 위한 지출을 경계합니다."],["투기와 빚 경계","잘 모르는 곳에 돈을 넣거나 무리한 빚을 지는 것을 위험하게 봅니다."],["돈 버는 구조 보기","노동만이 아니라 돈이 만들어지는 원리를 공부하라고 합니다."]]},
+ {t:"공부와 독서",s:"학교 공부가 끝난 뒤의 공부가 인생을 가른다고 봅니다. 특히 바로 써먹을 수 있는 실용 지식을 깊게 익히라고 권합니다.",
+  l:[["실용서를 깊게","자기 일에 직접 도움이 되는 책을 반복해 읽으라고 합니다."],["영어 공부","정보와 기회의 폭을 넓히는 도구로 영어를 강조합니다."],["평생 학습","나이와 상관없이 배우기를 멈추지 말라고 말합니다."],["읽고 행동하기","읽은 것을 실행에 옮기지 않으면 의미가 없다고 봅니다."]]},
+ {t:"인간관계",s:"사람을 보는 눈과 스스로 서는 힘을 함께 기르라고 말합니다. 착하기만 한 사람은 이용당하기 쉽다는 경고도 담겨 있습니다.",
+  l:[["사람 보는 눈","말보다 행동과 습관으로 사람을 판단하라고 합니다."],["착함보다 바름","무조건 맞춰 주기보다 원칙을 지키는 사람이 되라고 합니다."],["기대지 않기","도움을 바라기 전에 스스로 해결하는 힘을 기릅니다."],["거절과 협상","필요할 때 '아니오'라고 말하는 것이 필명의 뜻이기도 합니다."]]},
+ {t:"가족과 사회",s:"개인의 성공을 넘어 결혼, 자녀 교육, 사회 문제에 대한 저자의 견해도 솔직하게 담겨 있습니다.",
+  l:[["배우자 선택","결혼을 인생의 가장 큰 결정 가운데 하나로 다룹니다."],["자녀 교육","부모가 대신 해 주기보다 스스로 서게 하는 교육을 말합니다."],["사회 비판","사회 현상과 제도에 대한 날카로운 의견을 내놓습니다."],["나눔","번 돈을 어떻게 쓰고 돌려줄지도 삶의 일부로 봅니다."]]}
+];
+const NS="http://www.w3.org/2000/svg",svg=document.getElementById("svg"),panel=document.getElementById("panel"),chips=document.getElementById("chips");
+const C={x:600,y:430},R1=215,R2=375;
+const el=(n,a,p)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e};
+const gE=el("g"),gN=el("g");
+const step=2*Math.PI/DATA.length,refs=[];
+function measure(t,size,w){return t.length*size*(w||1)}
+DATA.forEach((b,i)=>{
+  const a=-Math.PI/2+i*step,bx=C.x+R1*Math.cos(a),by=C.y+R1*Math.sin(a)*0.92;
+  const e1=el("path",{class:"edge",d:`M${C.x},${C.y} Q${(C.x+bx)/2+20*Math.sin(a)},${(C.y+by)/2-20*Math.cos(a)} ${bx},${by}`},gE);
+  const leaves=[],spread=step*0.8;
+  b.l.forEach((lf,j)=>{
+    const la=a-spread/2+spread*(j/(b.l.length-1)),lx=C.x+R2*Math.cos(la),ly=C.y+R2*Math.sin(la)*0.95;
+    const p=el("path",{class:"edge leaf",d:`M${bx},${by} Q${(bx+lx)/2},${(by+ly)/2} ${lx},${ly}`},gE);
+    const g=el("g",{class:"lf"},gN);el("circle",{cx:lx,cy:ly,r:4.5},g);
+    const right=Math.cos(la)>=-0.05,t=el("text",{x:lx+(right?10:-10),y:ly+5,"text-anchor":right?"start":"end"},g);t.textContent=lf[0];
+    leaves.push({g,p});
+  });
+  const g=el("g",{class:"br",tabindex:0,role:"button","aria-label":b.t},gN);
+  const w=measure(b.t,17)+34;
+  el("rect",{x:bx-w/2,y:by-21,width:w,height:42,rx:21},g);
+  const t=el("text",{x:bx,y:by+6,"text-anchor":"middle"},g);t.textContent=b.t;
+  g.addEventListener("click",()=>select(i));
+  g.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();select(i)}});
+  const btn=document.createElement("button");btn.type="button";btn.id="chip-"+i;btn.textContent=b.t;btn.onclick=()=>select(i);chips.appendChild(btn);
+  refs.push({g,e1,leaves,btn});
+});
+const cg=el("g",{class:"center"},gN);const cw=measure("세이노의 가르침",30,0.95)+48;
+el("rect",{x:C.x-cw/2,y:C.y-34,width:cw,height:68,rx:8},cg);
+const ct=el("text",{x:C.x,y:C.y+11,"text-anchor":"middle"},cg);ct.textContent="세이노의 가르침";
+function select(i){
+  refs.forEach((r,k)=>{const on=k===i;r.g.classList.toggle("on",on);r.e1.classList.toggle("on",on);r.btn.setAttribute("aria-pressed",on);
+    r.leaves.forEach(l=>{l.g.classList.toggle("on",on);l.p.classList.toggle("on",on)})});
+  const b=DATA[i];
+  panel.innerHTML=`<div class="eyebrow">가지 ${i+1} / ${DATA.length}</div><h2></h2><p class="sum"></p><ul>${b.l.map(()=>"<li><b></b><span></span></li>").join("")}</ul>`;
+  panel.querySelector("h2").textContent=b.t;panel.querySelector(".sum").textContent=b.s;
+  panel.querySelectorAll("li").forEach((li,j)=>{li.querySelector("b").textContent=b.l[j][0];li.querySelector("span").textContent=b.l[j][1]});
+  try{localStorage.setItem("seino-branch",i)}catch(e){}
+}
+let start=1;try{const v=+localStorage.getItem("seino-branch");if(v>=0&&v<DATA.length&&localStorage.getItem("seino-branch")!==null)start=v}catch(e){}
+select(start);
+</script>
