@@ -1,0 +1,63 @@
+# Journal-grade figure style (Nature-family conventions, approximate).
+# Sizes are in points at FINAL print size. Build figures at final size with nfig.figure().
+# Check the target journal's current author guide before submission.
+
+# --- Fonts: one sans-serif family, 5-7 pt ---
+font.family        : sans-serif
+font.sans-serif    : Arial, Helvetica, Liberation Sans, DejaVu Sans
+font.size          : 7
+axes.titlesize     : 7
+axes.labelsize     : 7
+xtick.labelsize    : 6
+ytick.labelsize    : 6
+legend.fontsize    : 6
+legend.title_fontsize : 6
+mathtext.default   : regular
+
+# --- Lines: 0.25-1 pt ---
+axes.linewidth     : 0.5
+lines.linewidth    : 1.0
+lines.markersize   : 3
+patch.linewidth    : 0.5
+xtick.major.width  : 0.5
+ytick.major.width  : 0.5
+xtick.minor.width  : 0.4
+ytick.minor.width  : 0.4
+xtick.major.size   : 2.5
+ytick.major.size   : 2.5
+xtick.minor.size   : 1.5
+ytick.minor.size   : 1.5
+errorbar.capsize   : 0
+
+# --- Axes: no top/right spines, ticks out, no grid, no background ---
+axes.spines.top    : False
+axes.spines.right  : False
+xtick.direction    : out
+ytick.direction    : out
+axes.grid          : False
+axes.facecolor     : none
+figure.facecolor   : white
+axes.labelpad      : 2
+xtick.major.pad    : 2
+ytick.major.pad    : 2
+axes.titlepad      : 3
+axes.titleweight   : normal
+axes.titlelocation : left
+
+# --- Colour: Okabe-Ito (colour-blind safe) ---
+axes.prop_cycle    : cycler('color', ['0072B2', 'D55E00', '009E73', 'CC79A7', 'E69F00', '56B4E9', 'F0E442', '000000'])
+image.cmap         : viridis
+image.interpolation: none
+
+# --- Legend: no frame ---
+legend.frameon     : False
+legend.handlelength: 1.2
+legend.borderaxespad : 0.2
+
+# --- Output: editable text in vector files, 300+ dpi rasters ---
+pdf.fonttype       : 42
+ps.fonttype        : 42
+svg.fonttype       : none
+savefig.dpi        : 600
+savefig.bbox       : standard
+savefig.transparent: False

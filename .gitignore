@@ -1,0 +1,3 @@
+__pycache__/
+figure_guide/out/*.pdf
+figure_guide/out/*.svg
