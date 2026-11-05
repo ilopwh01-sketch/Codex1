@@ -137,7 +137,7 @@ def bracket(ax, x1, x2, y, text, h=0.02):
 
 # ---------------------------------------------------------------- images
 def show_image(ax, img, um_per_px, scalebar_um, vmin=None, vmax=None, cmap="gray",
-               bar_color="white", label=True, log=None):
+               bar_color="white", label=True, log=None, unit="µm"):
     """Show a micrograph with a scale bar. Only linear display limits, applied
     to the whole image; the limits are recorded in `log` (a list) for the Methods."""
     a = np.asarray(img, float)
@@ -150,11 +150,11 @@ def show_image(ax, img, um_per_px, scalebar_um, vmin=None, vmax=None, cmap="gray
     x0, y0 = w * 0.95 - L, h * 0.93
     ax.plot([x0, x0 + L], [y0, y0], color=bar_color, lw=2, solid_capstyle="butt")
     if label:
-        ax.text(x0 + L / 2, y0 - h * 0.03, f"{scalebar_um:g} µm", color=bar_color,
+        ax.text(x0 + L / 2, y0 - h * 0.03, f"{scalebar_um:g} {unit}", color=bar_color,
                 ha="center", va="bottom", fontsize=6)
     if log is not None:
         log.append({"display_min": float(vmin), "display_max": float(vmax),
-                    "um_per_px": um_per_px, "scalebar_um": scalebar_um, "cmap": cmap})
+                    "size_per_px": um_per_px, "scalebar": scalebar_um, "unit": unit, "cmap": cmap})
 
 
 def merge_magenta_green(ch1, ch2, lim1=None, lim2=None):
