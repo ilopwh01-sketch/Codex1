@@ -1,0 +1,14 @@
+{
+  "name": "qvis",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Q.V.I.S 모듈 라인 불량 모니터 (AI 없이 규칙 기반으로 동작, 나중에 DB·AI 연결)",
+  "scripts": {
+    "start": "node tools/serve.js",
+    "test": "node tests/smoke.js",
+    "build": "node tools/build-single.js"
+  },
+  "devDependencies": {
+    "playwright": "1.48.2"
+  }
+}

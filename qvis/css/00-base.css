@@ -1,0 +1,16 @@
+/* 00-base.css · 바탕 규칙. 간격·줄바꿈은 여기서 정한 단계만 쓴다 (AGENTS.md "간격 규칙")
+   - 간격: --s1 4px · --s2 8px · --s3 12px · --s4 16px · --s5 24px · --s6 32px  (이 밖의 숫자 금지)
+   - 줄바꿈: 한글은 단어 단위(keep-all). 숫자+단위는 한 덩어리(.nw). 말줄임(…)은 쓰지 않는다
+   - 배치 부품: .stack(세로) .row(가로) .cols-2(두 단) — margin 대신 gap으로 간격을 준다 */
+:root { --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; }
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body { word-break: keep-all; overflow-wrap: anywhere; }
+.nw, .tabular, svg text { white-space: nowrap; }
+.tabular { font-variant-numeric: tabular-nums; }
+.stack { display: flex; flex-direction: column; gap: var(--gap, var(--s3)); min-width: 0; }
+.row { display: flex; align-items: center; gap: var(--gap, var(--s2)); min-width: 0; flex-wrap: wrap; }
+.cols-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--gap, var(--s4)); }
+@media (max-width: 700px) { .cols-2 { grid-template-columns: minmax(0, 1fr); } }
+#data-badge.bad { background: rgba(243, 115, 33, 0.16); color: #FFC9A3; border-color: rgba(243, 115, 33, 0.5); }

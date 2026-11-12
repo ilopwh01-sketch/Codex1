@@ -1,0 +1,1641 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Q.V.I.S 어시스턴트</title>
+<!-- 글꼴: 인터넷이 막힌 내부망에서는 맑은 고딕으로 대신 보인다 -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<!-- 스타일: 뒤 파일이 앞 파일을 덮어쓴다. 순서를 바꾸지 말 것 -->
+<style>
+/* css/00-base.css */
+/* 00-base.css · 바탕 규칙. 간격·줄바꿈은 여기서 정한 단계만 쓴다 (AGENTS.md "간격 규칙")
+   - 간격: --s1 4px · --s2 8px · --s3 12px · --s4 16px · --s5 24px · --s6 32px  (이 밖의 숫자 금지)
+   - 줄바꿈: 한글은 단어 단위(keep-all). 숫자+단위는 한 덩어리(.nw). 말줄임(…)은 쓰지 않는다
+   - 배치 부품: .stack(세로) .row(가로) .cols-2(두 단) — margin 대신 gap으로 간격을 준다 */
+:root { --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; }
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body { word-break: keep-all; overflow-wrap: anywhere; }
+.nw, .tabular, svg text { white-space: nowrap; }
+.tabular { font-variant-numeric: tabular-nums; }
+.stack { display: flex; flex-direction: column; gap: var(--gap, var(--s3)); min-width: 0; }
+.row { display: flex; align-items: center; gap: var(--gap, var(--s2)); min-width: 0; flex-wrap: wrap; }
+.cols-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--gap, var(--s4)); }
+@media (max-width: 700px) { .cols-2 { grid-template-columns: minmax(0, 1fr); } }
+#data-badge.bad { background: rgba(243, 115, 33, 0.16); color: #FFC9A3; border-color: rgba(243, 115, 33, 0.5); }
+</style>
+<style>
+/* css/01-tokens.css */
+/* 색·글자 변수. 색을 바꿀 때는 이 파일만 고친다 (4톤 규칙: AGENTS.md) */
+/* Layout: 어두운 한 화면. 가운데 일렁이는 구체 → 그 아래 질문과 답 → 맨 아래 추천 질문과 입력창. 어두운 화면 하나로 고정. */
+:root {
+  color-scheme: dark;
+  --bg: #071226; --panel: #0D1C38; --line: #1B2F52; --ink: #E8F0F7; --ink-2: #B4C3D6; --muted: #8FA3BF;
+  --teal: #1FCFBE; --blue: #0A8FCB; --violet: #0B3B8F; --gold: #FFA766; --warm: #F37321;
+  /* 4톤 규칙: 네이비 바탕 · 미스트 글자 · 민트(→청록→블루 그라데이션) 조작/정상 · 오렌지 불량/알람 */
+  --grad: linear-gradient(90deg, #8EDDBB, #14C3B4 35%, #0A8FCB 70%, #0B3B8F);
+  --brand-1: #1DC0BA; --brand-2: #1095C6;
+  --font: 'Noto Sans KR', system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --display: 'Space Grotesk', 'Noto Sans KR', system-ui, sans-serif;
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+}
+</style>
+<style>
+/* css/02-layout.css */
+/* 기본 화면: 머리줄, 오브, 질문·답, 추천 질문, 입력창, 새 불량 알림 */
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.6; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.app { min-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-block: 18px 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background:
+    radial-gradient(60% 46% at 50% 38%, rgba(31, 207, 190, 0.10), rgba(31, 207, 190, 0) 70%),
+    radial-gradient(42% 38% at 84% 14%, rgba(11, 59, 143, 0.14), rgba(11, 59, 143, 0) 72%),
+    radial-gradient(48% 40% at 10% 82%, rgba(10, 143, 203, 0.13), rgba(10, 143, 203, 0) 72%),
+    radial-gradient(30% 26% at 72% 88%, rgba(255, 150, 90, 0.06), rgba(255, 150, 90, 0) 72%),
+    linear-gradient(180deg, #0A1834, #071226 60%, #050E1F); }
+/* 별: 화면 뒤에 고정된 캔버스 */
+.sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.top, .main, .dock { position: relative; z-index: 1; }
+.top { width: 100%; max-width: 1080px; display: flex; justify-content: space-between; align-items: center; }
+.brand { display: flex; flex-direction: column; gap: 3px; }
+.brand .word { font-family: var(--display); font-weight: 700; font-size: 24px; line-height: 1; letter-spacing: 1px; color: var(--brand-1); background: linear-gradient(90deg, var(--brand-1), var(--brand-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.brand .sub { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
+/* 한화 공식 로고 파일을 넣을 자리 */
+.logo-slot { height: 16px; padding: 0 6px; border: 1px dashed var(--muted); border-radius: 4px; font-size: 10px; color: var(--muted); display: inline-flex; align-items: center; }
+.core .hanwha-center { height: 24px; width: auto; display: block; margin: 4px 0 2px; filter: drop-shadow(0 0 8px rgba(7, 18, 38, 0.95)); }
+.main { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #15284A; color: var(--ink-2); border: 1px solid var(--line); }
+
+.stage { position: relative; width: min(100%, 580px, calc(100vh - 572px)); min-width: 230px; aspect-ratio: 1; max-width: 100%; flex-shrink: 0; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.core { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; pointer-events: none; text-align: center; }
+.core .name { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 6.4vw, 46px); line-height: 1; letter-spacing: 0.06em; padding-left: 0.06em; color: #C9F7EC; background: linear-gradient(180deg, #E9FCFF 10%, var(--brand-1) 60%, var(--brand-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(7, 18, 38, 0.95)) drop-shadow(0 0 18px rgba(31, 207, 190, 0.35)); }
+.core { transition: opacity 260ms linear; }
+.core.merged { opacity: 0.35; }
+.core .state { font-size: 14px; font-weight: 500; color: var(--ink); text-shadow: 0 0 12px rgba(7, 18, 38, 1); min-height: 22px; transition: opacity 200ms linear; }
+
+.talk { width: 100%; max-width: 760px; min-height: 128px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.q { color: var(--ink-2); font-size: 15px; min-height: 24px; }
+.a { font-size: clamp(18px, 2.6vw, 24px); line-height: 1.5; font-weight: 500; text-wrap: balance; word-break: keep-all; min-height: 64px; }
+.facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; min-height: 34px; }
+.fact { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 14px; font-size: 13px; font-weight: 700; opacity: 0; transform: translateY(6px); transition: opacity 300ms var(--ease-out), transform 300ms var(--ease-out); }
+.fact.on { opacity: 1; transform: none; }
+.fact.alert { border-color: var(--warm); color: #FFD2A8; }
+
+.dock { width: 100%; max-width: 760px; margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 7px 14px; font-size: 13px; color: var(--ink-2); cursor: pointer; transition: background-color 100ms linear, border-color 100ms linear, transform 100ms var(--ease-out); }
+.chip:hover { background: var(--panel); border-color: var(--teal); color: var(--ink); }
+.chip:active, .mic:active, .send:active { transform: scale(0.96); }
+.bar { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); transition: border-color 150ms linear, box-shadow 150ms linear; }
+.bar:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(31, 207, 190, 0.16); }
+.bar input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; padding: 8px 6px; }
+.bar input::placeholder { color: var(--muted); }
+.mic, .send { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; transition: transform 100ms var(--ease-out), background-color 150ms linear, box-shadow 150ms linear; }
+.mic { background: #15284A; }
+.mic[aria-pressed="true"] { background: var(--teal); box-shadow: 0 0 0 6px rgba(31, 207, 190, 0.18); }
+.mic svg, .send svg { width: 20px; height: 20px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mic[aria-pressed="true"] svg { stroke: #06203A; }
+.send { background: var(--teal); }
+.send svg { stroke: #06203A; }
+.hint { text-align: center; font-size: 12px; color: var(--muted); }
+/* 새 불량 알림 배너: 위에서 내려옴 */
+.alertbar { position: fixed; z-index: 20; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px)); width: min(680px, calc(100% - 32px)); box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 12px 14px 12px 16px; border-radius: 14px;
+  background: rgba(38, 20, 10, 0.92); border: 1px solid var(--warm); box-shadow: 0 0 0 4px rgba(243, 115, 33, 0.12), 0 18px 50px rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px);
+  transform: translate(-50%, calc(-100% - 40px)); opacity: 0; visibility: hidden; transition: transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms linear, visibility 0s linear 420ms; }
+.alertbar.on { transform: translate(-50%, 0); opacity: 1; visibility: visible; transition: transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms linear, visibility 0s; }
+.alertbar .pulse { position: relative; width: 12px; height: 12px; flex-shrink: 0; border-radius: 50%; background: var(--warm); }
+.alertbar .pulse::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--warm); animation: ping 1200ms var(--ease-out) infinite; }
+@keyframes ping { from { transform: scale(0.5); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
+.alertbar .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.alertbar .k { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: #FFB385; }
+.alertbar .m { font-size: 15px; font-weight: 700; }
+.alertbar button { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; border: 1px solid rgba(255, 179, 133, 0.4); background: transparent; cursor: pointer; display: grid; place-items: center; }
+.alertbar button svg { width: 12px; height: 12px; fill: none; stroke: #FFD6B8; stroke-width: 2; stroke-linecap: round; }
+.chip.alert-chip { border-style: dashed; border-color: rgba(243, 115, 33, 0.7); color: #FFC9A3; }
+.chip.alert-chip:hover { border-color: var(--warm); }
+.right { display: flex; align-items: center; gap: 10px; }
+.voice { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.voice[aria-pressed="true"] { border-color: var(--teal); color: var(--teal); }
+</style>
+<style>
+/* css/03-panels.css */
+/* 근거 팝업과 그 안의 그래프·표·EL 이미지 */
+/* 근거 패널의 공정 경로 */
+.route { list-style: none; margin: 0; padding: 0; }
+.route li { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; animation: rise 320ms var(--ease-out) both; animation-delay: calc(var(--i) * 90ms + 200ms); }
+.route li:not(:last-child)::before { content: ""; position: absolute; left: 8px; top: calc(50% + 6px); width: 2px; height: calc(100% - 12px); background: var(--line); }
+.route .dot { position: relative; z-index: 1; justify-self: center; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 2px solid #3A5480; background: var(--bg); }
+.route li.hot .dot { border-color: var(--warm); }
+.route li.bad .dot { background: var(--warm); border-color: var(--warm); box-shadow: 0 0 10px var(--warm); }
+.route .st { font-weight: 700; font-size: 14px; }
+.route .sub { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+.route li.hot .sub, .route li.bad .sub { color: #FFC9A3; }
+.route .tm { font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+/* 근거 패널의 시간대별 그래프 */
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--teal); vertical-align: middle; margin-right: 6px; }
+.legend i.u { border-top: 2px dashed #8FA3BF; }
+.legend i.t { border-top: 1.5px solid var(--ink); opacity: 0.6; }
+.chartwrap { position: relative; touch-action: pan-y; }
+.chart { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .grid { stroke: #1B2F52; stroke-width: 1; }
+.chart text { fill: var(--muted); font-family: var(--font); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart text.lab { fill: var(--ink-2); }
+.chart text.end-lab { fill: var(--ink); font-size: 13px; font-weight: 700; }
+.chart .target { stroke: var(--ink); stroke-opacity: 0.5; stroke-width: 1.2; }
+.chart .usual { fill: none; stroke: #8FA3BF; stroke-width: 2; stroke-dasharray: 5 5; opacity: 0.85; }
+.chart .today, .chart .over { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.chart .today { stroke: var(--teal); animation: draw 900ms var(--ease-out) 200ms forwards; }
+.chart .over { stroke: var(--warm); stroke-width: 2.5; animation: draw 500ms var(--ease-out) 950ms forwards; }
+.chart .wash { fill: rgba(31, 207, 190, 0.1); opacity: 0; animation: fade 400ms linear 700ms forwards; }
+.chart .hotwash { fill: rgba(243, 115, 33, 0.16); opacity: 0; animation: fade 400ms linear 1100ms forwards; }
+.chart .end { opacity: 0; animation: fade 300ms linear 1250ms forwards; }
+.chart .ring { fill: none; stroke: var(--warm); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: ping 1400ms var(--ease-out) 1300ms infinite; }
+.chart .cross { stroke: var(--ink-2); stroke-width: 1; }
+@keyframes fade { to { opacity: 1; } }
+.ctip { position: absolute; left: 0; top: 0; pointer-events: none; background: #EAF2F8; color: #071226; border-radius: 8px; padding: 6px 9px; font-size: 12px; line-height: 1.4; white-space: nowrap; opacity: 0; transform: translate(-50%, -115%); transition: opacity 100ms linear; }
+.ctip.on { opacity: 1; }
+.ctip b { display: block; font-size: 14px; }
+/* EL 이미지: 홀로그램처럼 깜빡이며 뜨고, 스캔선이 지나가면 검출 칸이 잡힌다 */
+.elview { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid rgba(31, 207, 190, 0.45); box-shadow: 0 0 0 1px rgba(31, 207, 190, 0.12), 0 0 40px rgba(31, 207, 190, 0.18); background: #020407; }
+.elimg { display: block; width: 100%; height: auto; animation: holo 700ms linear both; }
+@keyframes holo { 0% { opacity: 0; filter: brightness(2) saturate(0); } 18% { opacity: 0.7; } 30% { opacity: 0.15; } 46% { opacity: 0.9; } 60% { opacity: 0.5; } 100% { opacity: 1; filter: none; } }
+.elview .grain { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(31, 207, 190, 0.05) 0 1px, transparent 1px 4px); mix-blend-mode: screen; }
+.elview .scan { position: absolute; left: 0; right: 0; top: 0; height: 18%; pointer-events: none; background: linear-gradient(180deg, rgba(31, 207, 190, 0), rgba(31, 207, 190, 0.35) 85%, rgba(220, 252, 255, 0.9)); opacity: 0; animation: scan 900ms cubic-bezier(0.45, 0, 0.55, 1) 300ms both; }
+@keyframes scan { 0% { transform: translateY(-100%); opacity: 1; } 95% { opacity: 1; } 100% { transform: translateY(560%); opacity: 0; } }
+.elview .brk { position: absolute; width: 22px; height: 22px; border-color: var(--teal); border-style: solid; border-width: 0; }
+.brk.tl { left: 8px; top: 8px; border-left-width: 2px; border-top-width: 2px; } .brk.tr { right: 8px; top: 8px; border-right-width: 2px; border-top-width: 2px; }
+.brk.bl { left: 8px; bottom: 8px; border-left-width: 2px; border-bottom-width: 2px; } .brk.br { right: 8px; bottom: 8px; border-right-width: 2px; border-bottom-width: 2px; }
+.elview .hud { position: absolute; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: #C9F7EC; text-shadow: 0 0 6px rgba(0, 0, 0, 0.9); padding: 3px 8px; border-radius: 4px; background: rgba(2, 4, 7, 0.65); }
+.hud.h1 { left: 36px; top: 12px; } .hud.h2 { right: 36px; top: 12px; color: #FFC9A3; } .hud.h3 { left: 36px; bottom: 12px; font-weight: 500; color: var(--ink-2); }
+.elbox { position: absolute; box-sizing: border-box; border: 2px solid var(--warm); border-radius: 3px; box-shadow: 0 0 14px rgba(243, 115, 33, 0.7), inset 0 0 12px rgba(243, 115, 33, 0.35); opacity: 0; transform: scale(1.6); animation: lock 320ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--d) forwards; }
+.elbox.warn { border-color: #FFA766; box-shadow: 0 0 14px rgba(255, 167, 102, 0.6), inset 0 0 12px rgba(255, 167, 102, 0.3); }
+@keyframes lock { to { opacity: 1; transform: none; } }
+.elbox .tag { position: absolute; left: -2px; bottom: calc(100% + 4px); white-space: nowrap; font-size: 11px; font-weight: 700; color: #1A0A06; background: var(--warm); padding: 1px 6px; border-radius: 3px; }
+.elbox .tag.below { bottom: auto; top: calc(100% + 4px); }
+.elbox.warn .tag { background: #FFA766; }
+@property --k { syntax: '<number>'; inherits: true; initial-value: 1; }
+.elstage { position: relative; transform-origin: 0 0; transition: transform 140ms var(--ease-out), --k 140ms var(--ease-out); --k: 1; will-change: transform; }
+.elstage.noanim { transition: none; }
+.elview { touch-action: none; user-select: none; }
+.elview.zoomed { cursor: grab; }
+.elview.dragging { cursor: grabbing; }
+/* 확대 창: 불량 자리에서 튕기듯 튀어나오고, 누르면 줄어들며 사라진다 */
+.elpop { position: absolute; z-index: 3; width: 34%; aspect-ratio: 3 / 2; padding: 0; border-radius: 12px; overflow: hidden; cursor: pointer; background: #020407; border: 2px solid var(--warm);
+  box-shadow: 0 0 0 4px rgba(243, 115, 33, 0.14), 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 26px rgba(243, 115, 33, 0.45); opacity: 0; transform: scale(0.2); transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 160ms linear; }
+.elpop.warn { border-color: #FFA766; box-shadow: 0 0 0 4px rgba(255, 167, 102, 0.14), 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 26px rgba(255, 167, 102, 0.4); }
+.elpop.on { opacity: 1; transform: none; }
+.elpop.off { opacity: 0; transform: scale(0.3); transition: transform 240ms cubic-bezier(0.4, 0, 1, 1), opacity 200ms linear 40ms; }
+.elpop:hover { filter: brightness(1.08); }
+.elpop canvas { display: block; width: 100%; height: 100%; }
+.elpop .zl { position: absolute; left: 0; right: 0; bottom: 0; padding: 7px 12px; font-size: 15px; font-weight: 700; text-align: left; background: rgba(2, 4, 7, 0.78); color: #FFD6B8; }
+.elpop.warn .zl { color: #FFE0C2; }
+.eline { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
+.eline line { stroke: var(--warm); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 380ms var(--ease-out); }
+.eline circle { fill: var(--warm); opacity: 0; transition: opacity 200ms linear; }
+.eline.warn line { stroke: #FFA766; } .eline.warn circle { fill: #FFA766; }
+.eline.on line { stroke-dashoffset: 0; } .eline.on circle { opacity: 1; }
+.elpop::after { content: "×"; position: absolute; right: 8px; top: 8px; width: 30px; height: 30px; line-height: 28px; border-radius: 50%; font-size: 20px; color: #fff; background: rgba(2, 4, 7, 0.6); }
+.elview { cursor: zoom-in; }
+.elview.zoomed { cursor: zoom-out; }
+.elstage .elbox { border-width: calc(2px / var(--k)); border-radius: calc(3px / var(--k)); }
+.elstage .elbox .tag { font-size: calc(11px / var(--k)); padding: calc(1px / var(--k)) calc(6px / var(--k)); bottom: calc(100% + 4px / var(--k)); border-radius: calc(3px / var(--k)); }
+.elstage .elbox .tag.below { top: calc(100% + 4px / var(--k)); }
+.elview .reticle { position: absolute; left: 50%; top: 50%; width: 46%; height: 70%; transform: translate(-50%, -50%) scale(1.25); border: 1px solid rgba(31, 207, 190, 0.75); border-radius: 10px; opacity: 0; pointer-events: none; box-shadow: 0 0 30px rgba(31, 207, 190, 0.35); }
+.elview .reticle.on { animation: reticle 900ms cubic-bezier(0.2, 0.8, 0.2, 1) 400ms both; }
+@keyframes reticle { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); } 35% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); } }
+button.elchip { background: transparent; cursor: pointer; font-family: inherit; }
+button.elchip:hover { background: rgba(255, 255, 255, 0.06); }
+.elzoom { position: absolute; right: 14px; bottom: 14px; width: 24%; aspect-ratio: 1; border-radius: 10px; overflow: hidden; border: 2px solid var(--warm); box-shadow: 0 0 24px rgba(243, 115, 33, 0.5); opacity: 0; transform: translateY(12px) scale(0.85); animation: lock 380ms cubic-bezier(0.34, 1.56, 0.64, 1) 1450ms forwards; }
+.elzoom canvas { display: block; width: 100%; height: 100%; }
+.elzoom .zl { position: absolute; left: 0; right: 0; bottom: 0; font-size: 11px; font-weight: 700; text-align: center; padding: 3px; background: rgba(2, 4, 7, 0.75); color: #FFD6B8; }
+.elcells { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.elchip { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid #FFA766; color: #FFE0C2; animation: rise 280ms var(--ease-out) both; animation-delay: calc(var(--i) * 60ms + 1300ms); }
+.elchip.hot { border-color: var(--warm); color: #FFC9A3; }
+.panel.focus .elview .hud { font-size: 13px; }
+/* 통계 분석 */
+.legend i.c { border-top: 1px solid #B4C3D6; }
+.legend i.x { border-top: 2px solid #FF9A5C; }
+.chart .ucl { fill: none; stroke: #FF9A5C; stroke-width: 1.5; opacity: 0.85; }
+.chart .cl { stroke: #B4C3D6; stroke-width: 1; }
+.chart .pt { fill: var(--teal); stroke: #0D1C38; stroke-width: 2; opacity: 0; animation: fade 200ms linear forwards; animation-delay: calc(var(--i) * 70ms + 500ms); }
+.chart .pt.out { fill: var(--warm); }
+.stats-row { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; margin-top: 12px; }
+.mini-k { font-size: 12px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; }
+.pareto, .test { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); }
+.prow { display: grid; grid-template-columns: 92px minmax(0, 1fr) 30px 40px; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0; animation: rise 300ms var(--ease-out) both; animation-delay: calc(var(--i) * 60ms + 300ms); }
+.prow .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow .pbar { height: 8px; border-radius: 4px; background: #15284A; overflow: hidden; }
+.prow .pbar i { display: block; width: 0; height: 100%; border-radius: 4px; background: #3A6688; transition: width 600ms var(--ease-out); }
+.prow.hot .pbar i { background: var(--warm); }
+.prow .v, .prow .cu { text-align: right; font-variant-numeric: tabular-nums; }
+.prow .cu { color: var(--muted); }
+.test .trow { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--line); }
+.test .trow:first-of-type { border-top: 0; }
+.test .trow span { color: var(--muted); }
+.test .trow b { font-variant-numeric: tabular-nums; }
+.test .verdict { margin-top: 8px; padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; text-align: center; background: #15284A; color: var(--ink-2); }
+.test.sig .verdict { background: rgba(243, 115, 33, 0.16); color: #FFC9A3; border: 1px solid rgba(243, 115, 33, 0.5); }
+@media (max-width: 560px) { .stats-row { grid-template-columns: minmax(0, 1fr); } }
+/* 조치 필요 · QVIS 의견 */
+.sec { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sec-k { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: #FFB385; }
+.sec-k .cnt { color: var(--muted); letter-spacing: 0; }
+.acts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.act { animation: rise 320ms var(--ease-out) both; animation-delay: calc(var(--i) * 70ms + 500ms); }
+.act label { position: relative; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); cursor: pointer; transition: background-color 100ms linear, border-color 100ms linear; }
+.act label:hover { border-color: #2E4A78; background: rgba(255, 255, 255, 0.04); }
+.act input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.act .box { width: 18px; height: 18px; flex-shrink: 0; box-sizing: border-box; border-radius: 5px; border: 1.5px solid var(--muted); display: grid; place-items: center; transition: background-color 120ms linear, border-color 120ms linear; }
+.act .box svg { width: 12px; height: 12px; fill: none; stroke: #06203A; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.act .box path { stroke-dasharray: 18; stroke-dashoffset: 18; transition: stroke-dashoffset 240ms cubic-bezier(0.65, 0, 0.35, 1); }
+.act input:checked + .box { background: var(--teal); border-color: var(--teal); }
+.act input:checked + .box path { stroke-dashoffset: 0; }
+.act input:focus-visible + .box { outline: 2px solid var(--teal); outline-offset: 2px; }
+.act .tx { flex: 1; min-width: 0; font-size: 14px; transition: color 150ms linear; }
+.act input:checked ~ .tx { color: var(--muted); text-decoration: line-through; }
+.act .who { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.fb { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(31, 207, 190, 0.28); background: rgba(31, 207, 190, 0.06); font-size: 14px; line-height: 1.6; word-break: keep-all; animation: rise 320ms var(--ease-out) both; animation-delay: 700ms; }
+.fb .k { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700; color: var(--teal); }
+.mode { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.mode i { width: 7px; height: 7px; border-radius: 50%; background: #8FA3BF; }
+/* 근거 패널: 넓은 화면에서는 오른쪽에서 들어오고 구체가 왼쪽으로 비켜남 */
+.main { position: relative; }
+.center-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms linear; }
+.panel { position: absolute; right: 0; top: 50%; width: min(440px, 38%); max-height: calc(100vh - 120px); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; padding: 18px 20px 20px; border-radius: 16px; background: linear-gradient(180deg, rgba(14, 28, 54, 0.80), rgba(5, 12, 26, 0.90)); border: 1px solid var(--line); -webkit-backdrop-filter: blur(18px) saturate(130%); backdrop-filter: blur(18px) saturate(130%); box-shadow: inset 0 1px 0 rgba(232, 240, 247, 0.06), 0 24px 70px rgba(0, 0, 0, 0.55);
+  transform: translate(calc(100% + 48px), -50%); opacity: 0; visibility: hidden; transition: transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms linear, visibility 0s linear 480ms; }
+.app.open .panel { transform: translate(0, -50%); opacity: 1; visibility: visible; transition: transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms linear, visibility 0s; }
+@media (min-width: 901px) {
+  .app.open .center-col { transform: translateX(min(-220px, -18vw)); }
+  /* 그래프는 가운데 크게 띄우고, 구체는 뒤로 물러남 */
+  .app.open .main { z-index: 5; }
+  .panel.focus { position: fixed; top: calc(76px + env(safe-area-inset-top, 0px)); left: 50%; right: auto; width: min(1680px, calc(100% - 40px)); max-height: calc(100vh - 76px - 90px); padding: 26px 36px 28px; transform-origin: 50% 0; transform: translate(-50%, 12px) scale(0.97); }
+  .app.open .panel.focus { transform: translate(-50%, 0) scale(1); }
+  .app.open.focus .talk { visibility: hidden; opacity: 0; }
+  .app.open.focus .chips, .app.open.focus .hint { display: none; }
+  .app .panel.focus.split.el #p-body { grid-template-columns: minmax(0, calc((100vh - 400px) * 1.69)) minmax(340px, 1fr); }
+  .app.open.focus .center-col { transform: scale(0.94); opacity: 0.07; }
+  .panel.focus .panel-head h2 { font-size: 26px; }
+  .panel.focus .panel-head .k { font-size: 14px; }
+  .panel.focus .panel-head { margin-bottom: 18px; }
+  .panel.focus .legend { font-size: 14px; margin-bottom: 10px; }
+  .panel.focus .extras { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .panel.focus .extras .sec { margin-top: 0; padding-top: 0; border-top: 0; }
+  .panel.focus .extras .fb { margin-top: 0; }
+  /* 표·마인드맵·공정 경로: 왼쪽 근거, 오른쪽 조치와 의견 */
+  .panel.focus.split #p-body { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  .panel.focus.split.wide #p-body { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
+  .panel.focus.split.el #p-body { grid-template-columns: minmax(0, 1fr) 340px; }
+  .panel.focus.split .extras { display: flex; flex-direction: column; align-items: stretch; gap: 14px; margin-top: 0; padding: 0 0 0 28px; border-top: 0; border-left: 1px solid var(--line); }
+  .panel.focus .ptable { font-size: 17px; }
+  .panel.focus .ptable th { font-size: 13px; }
+  .panel.focus .ptable td { padding: 13px 8px; }
+  .panel.focus .ptable .bar { height: 8px; min-width: 90px; }
+  .panel.focus .route li { padding: 11px 0; }
+  .panel.focus .route .st { font-size: 18px; }
+  .panel.focus .route .sub { font-size: 14px; }
+  .panel.focus .route .tm { font-size: 16px; }
+  .panel.focus .act .tx, .panel.focus .fb { font-size: 16px; }
+  .panel.focus .prow, .panel.focus .test .trow { font-size: 14px; }
+  .panel.focus .prow { grid-template-columns: 104px minmax(0, 1fr) 30px 42px; }
+  .panel.focus .act label { min-height: 50px; }
+  .panel.focus .sec-k, .panel.focus .fb .k { font-size: 14px; }
+}
+@media (max-width: 900px) {
+  .panel { position: static; width: 100%; max-width: 760px; transform: none; display: none; }
+  .app.open .panel { display: block; transform: none; animation: rise 360ms var(--ease-out); }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.panel-head .k { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--teal); }
+.panel-head h2 { margin: 2px 0 0; font-size: 17px; font-weight: 700; }
+.x { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--line); background: transparent; cursor: pointer; display: grid; place-items: center; }
+.x svg { width: 14px; height: 14px; fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linecap: round; }
+.ptable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ptable th { text-align: left; font-size: 11px; font-weight: 700; color: var(--muted); padding: 0 6px 8px; }
+.ptable td { padding: 8px 6px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ptable td:nth-child(2) { white-space: normal; }
+.ptable tr.in { animation: rise 320ms var(--ease-out) both; animation-delay: calc(var(--i) * 60ms + 200ms); }
+.ptable .bar { height: 6px; min-width: 56px; border-radius: 3px; background: #15284A; overflow: hidden; }
+.ptable .bar i { display: block; width: 0; height: 100%; border-radius: 3px; background: var(--teal); transition: width 600ms var(--ease-out); }
+.ptable .bar.hot i { background: var(--warm); }
+.map { display: block; width: 100%; height: auto; }
+.map .link { fill: none; stroke: #2A4572; stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 600ms var(--ease-out) forwards; animation-delay: calc(var(--i) * 90ms + 200ms); }
+.map .link.hot { stroke: var(--warm); stroke-width: 3; }
+.map .node { opacity: 0; transform-box: fill-box; transform-origin: center; animation: pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; animation-delay: calc(var(--i) * 90ms + 300ms); }
+.map rect { fill: #12264A; stroke: #2A4572; }
+.map .hot rect { fill: #2A1712; stroke: var(--warm); }
+.map .center rect { fill: #0F3346; stroke: var(--teal); }
+.map text { fill: var(--ink); font-family: var(--font); font-size: 13px; }
+.map text.sm { fill: var(--ink-2); font-size: 12px; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+.more { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--teal); cursor: pointer; transition: transform 100ms var(--ease-out), border-color 100ms linear; }
+.more:hover { border-color: var(--teal); }
+.more:active { transform: scale(0.96); }
+@media (prefers-reduced-motion: reduce) {
+  .fact, .chip, .mic, .send, .center-col, .panel, .app.open .panel, .ptable .bar i { transition: none; }
+  .ptable tr.in, .app.open .panel { animation: none; }
+  .map .link { animation: none; stroke-dashoffset: 0; }
+  .map .node { animation: none; opacity: 1; }
+  .route li { animation: none; }
+  .act, .fb, .prow, .elchip { animation: none; }
+  .elimg, .elview .scan { animation: none; }
+  .elview .scan { display: none; }
+  .elbox, .elzoom { animation: none; opacity: 1; transform: none; }
+  .elstage { transition: none; }
+  .elpop, .elpop.off { transition: none; }
+  .elview .reticle.on { animation: none; }
+  .chart .pt { animation: none; opacity: 1; }
+  .prow .pbar i { transition: none; }
+  .act .box path { transition: none; }
+  .chart .today, .chart .over { animation: none; stroke-dashoffset: 0; }
+  .chart .wash, .chart .hotwash, .chart .end { animation: none; opacity: 1; }
+  .chart .ring { animation: none; }
+  .alertbar, .alertbar.on { transition: none; }
+  .alertbar .pulse::after { animation: none; }
+}
+</style>
+<style>
+/* css/04-refinements.css */
+/* 다듬기: 앞 파일의 규칙을 덮어쓴다. 마지막에 읽혀야 한다. 화면 크기별 조정, 통계·설비 비교·좌우 숫자 스타일 */
+/* 층 쌓기: 위에 뜨는 패널은 한 단계 밝은 네이비 + 밝은 테두리(글래스) */
+.panel { border-color: rgba(232, 240, 247, 0.09); }
+.fact, .chip, .bar { font-variant-numeric: tabular-nums; }
+/* p 관리도 다듬기 */
+.pchart .grid { opacity: 0.55; }
+.legend i.x { border-top: 2px dashed var(--warm); }
+.legend i.c { border-top: 1.5px dotted var(--ink-2); }
+.legend i.z { width: 14px; height: 10px; border: 0; border-radius: 2px; background: rgba(243, 115, 33, 0.22); }
+.chart .ucl { fill: none; stroke: var(--warm); stroke-width: 1.6; stroke-dasharray: 6 4; opacity: 0.9; }
+.chart .cl { stroke: var(--ink-2); stroke-width: 1.2; stroke-dasharray: 2 4; opacity: 0.8; }
+.pchart .zone { opacity: 0; animation: fade 500ms linear 500ms forwards; }
+.pchart .zl { fill: #FFB385; font-size: 11px; font-weight: 700; opacity: 0; animation: fade 400ms linear 900ms forwards; }
+.pchart .lab-u { fill: #FFB385; font-size: 12px; font-weight: 700; }
+.pchart .lab-c { fill: var(--ink-2); font-size: 12px; }
+.pchart .pwash { opacity: 0; animation: fade 500ms linear 800ms forwards; }
+.pchart .today { stroke-width: 2.4; }
+.pchart .hotline { stroke: var(--warm); stroke-width: 3; }
+.chart .pt { stroke: #0A1830; stroke-width: 2; }
+.chart .pt.out { fill: var(--warm); stroke-width: 2.5; }
+.pchart .out-lab { fill: #FFB385; font-size: 16px; font-weight: 700; opacity: 0; animation: fade 300ms linear 1200ms forwards; }
+.prow.phd { font-size: 11px; color: var(--muted); padding-bottom: 2px; animation: none; }
+.prow.phd span:nth-child(3), .prow.phd span:nth-child(4) { text-align: right; }
+@media (prefers-reduced-motion: reduce) { .pchart .zone, .pchart .zl, .pchart .pwash, .pchart .out-lab { animation: none; opacity: 1; } }
+/* 통계 패널 배치: 왼쪽 관리도 + 두 단 파레토, 오른쪽 조치 · 의견 · 비교 검정 */
+.stats-row { grid-template-columns: minmax(0, 1fr); }
+.plist { display: grid; grid-auto-flow: column; grid-template-rows: repeat(5, auto); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 36px; }
+.test.side-card { animation: rise 320ms var(--ease-out) both; animation-delay: 800ms; }
+@media (max-width: 700px) { .plist { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: minmax(0, 1fr); } .plist .phd.h2 { display: none; } }
+/* 디자인 점검 반영 */
+@media (min-width: 901px) and (max-width: 1599px) { .panel.focus.split.wide:not(.el) #p-body { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 28px; } }
+@media (min-width: 901px) and (max-height: 899px) { .panel.focus { padding: 20px 28px 22px; } .panel.focus.split .extras { gap: 10px; } .test, .pareto { padding: 10px 12px; } .fb { padding: 10px 12px; } .test .verdict { margin-top: 8px; } .panel.focus .panel-head { margin-bottom: 8px; } .stats-row { margin-top: 8px; } .pareto { padding: 10px 14px; } .prow { padding: 2px 0; } .panel.focus .legend { margin-bottom: 2px; } }
+.ptable th.num, .ptable td.num { text-align: right; padding-right: 18px; font-variant-numeric: tabular-nums; }
+.alertbar { top: calc(72px + env(safe-area-inset-top, 0px)); }
+.talk { transition: opacity 200ms linear; }
+/* 비교 검정: 2×2 숫자 타일 */
+.tgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.tile { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; min-width: 0; border-radius: 10px; background: rgba(232, 240, 247, 0.03); border: 1px solid var(--line); }
+.tile .tl { font-size: 11px; font-weight: 700; color: var(--muted); }
+.tile b { font-size: 19px; white-space: nowrap; line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.tile .ts { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile.hot b { color: #FFB385; }
+.tile.hot .ts { color: #FFB385; opacity: 0.8; }
+.test .verdict { margin-top: 10px; }
+.elpop .zl { font-size: clamp(11px, 0.95vw, 15px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 44px; }
+/* 한글은 단어 단위로 줄바꿈 (한 글자만 다음 줄로 넘어가지 않게) */
+.panel, .act .tx, .fb, .alertbar .m, .a { word-break: keep-all; overflow-wrap: anywhere; }
+/* 설비 비교(분산분석) */
+.legend i.k { width: 14px; height: 10px; border: 0; border-radius: 3px; background: rgba(31, 207, 190, 0.3); }
+.legend i.g { width: 0; height: 12px; border: 0; border-left: 2px solid var(--ink); }
+.legend i.o { width: 0; height: 12px; border: 0; border-left: 1.5px dashed var(--ink-2); }
+.anv .gname { fill: var(--ink); font-size: 14px; font-weight: 700; }
+.anv .gval { fill: var(--muted); font-size: 11px; }
+.anv .gval.hot { fill: #FFB385; font-weight: 700; }
+.anv .base { stroke: var(--line); stroke-width: 1; }
+.anv .kd { fill: rgba(31, 207, 190, 0.14); opacity: 0; animation: fade 500ms linear forwards; animation-delay: calc(var(--i) * 120ms + 300ms); }
+.anv .kd.hot { fill: rgba(243, 115, 33, 0.2); }
+.anv .kl { fill: none; stroke: var(--teal); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 800ms var(--ease-out) forwards; animation-delay: calc(var(--i) * 120ms + 150ms); }
+.anv .kl.hot { stroke: var(--warm); }
+.anv .jd { fill: var(--teal); opacity: 0; animation: fade 200ms linear forwards; animation-delay: calc(var(--i) * 40ms + 600ms); }
+.anv .jd.hot { fill: var(--warm); }
+.anv .gm { stroke: var(--ink); stroke-width: 2.2; opacity: 0; animation: fade 300ms linear forwards; animation-delay: calc(var(--i) * 120ms + 900ms); }
+.anv .om { stroke: var(--ink-2); stroke-width: 1.2; stroke-dasharray: 4 4; }
+.anv .om-t { fill: var(--ink-2); font-size: 11px; }
+.anv .dev { stroke: var(--teal); stroke-width: 1.6; opacity: 0; animation: fade 300ms linear forwards; animation-delay: calc(var(--i) * 120ms + 1200ms); }
+.anv .dev.hot { stroke: var(--warm); stroke-width: 2.2; }
+.anv-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px; margin-top: 12px; }
+.fcard, .pcard { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(232, 240, 247, 0.02); display: flex; flex-direction: column; gap: 8px; animation: rise 320ms var(--ease-out) both; animation-delay: 700ms; }
+.fcard .frow { display: flex; align-items: center; gap: 10px; }
+.fcard .fF { font-weight: 700; font-size: 18px; }
+.fcard .frac { flex: 1; display: flex; flex-direction: column; text-align: center; font-size: 13px; font-weight: 700; }
+.fcard .frac span { padding: 3px 0; }
+.fcard .frac .nu { border-bottom: 1.5px solid var(--ink); }
+.fcard .nu { color: var(--teal); }
+.fcard .de { color: var(--ink-2); }
+.fcard .fl { font-size: 14px; color: var(--ink-2); padding-left: 2px; animation: rise 300ms var(--ease-out) both; animation-delay: calc(var(--i) * 350ms + 1000ms); font-variant-numeric: tabular-nums; }
+.fcard .fl b { font-size: 17px; }
+.fcard .fl .fv { font-size: 26px; color: var(--ink); }
+.fcard .df { margin-left: 10px; font-size: 12px; color: var(--muted); }
+.fdist { width: 100%; height: auto; }
+.fdist .axis { stroke: var(--line); }
+.fdist .fcurve { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 900ms var(--ease-out) 900ms forwards; }
+.fdist .tail { fill: var(--warm); opacity: 0; animation: fade 400ms linear 1700ms forwards; }
+.fdist .fmk { fill: var(--ink); }
+.fdist .fv-t { fill: var(--ink); font-size: 12px; font-weight: 700; }
+.fdist .brk { fill: none; stroke: var(--warm); stroke-width: 1.4; }
+.fdist .pv-t { fill: #FFB385; font-size: 14px; font-weight: 700; }
+.pcard .verdict { padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; text-align: center; background: #15284A; color: var(--ink-2); }
+.pcard .verdict.sig { background: rgba(243, 115, 33, 0.16); color: #FFC9A3; border: 1px solid rgba(243, 115, 33, 0.5); }
+@media (max-width: 700px) { .anv-row { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .anv .kd, .anv .jd, .anv .gm, .anv .dev, .fdist .tail { animation: none; opacity: 1; } .anv .kl, .fdist .fcurve { animation: none; stroke-dashoffset: 0; } .fcard, .pcard, .fcard .fl { animation: none; } }
+/* 대형 화면 좌우 숫자: 오브 양옆의 빈 공간에 핵심 숫자 4개 */
+.kpi { position: fixed; top: 50%; z-index: 1; display: none; flex-direction: column; gap: 34px; width: clamp(210px, 16vw, 320px); transform: translateY(-46%); transition: opacity 260ms linear, visibility 0s linear 260ms; }
+@media (min-width: 1280px) and (min-height: 700px) { .kpi { display: flex; } }
+.kpi-l { left: max(32px, 4.5vw); }
+.kpi-r { right: max(32px, 4.5vw); text-align: right; }
+.app.open .kpi { opacity: 0; visibility: hidden; }
+.kp { display: flex; flex-direction: column; gap: 2px; padding-top: 14px; border-top: 1px solid var(--line); animation: rise 420ms var(--ease-out) both; animation-delay: calc(var(--i) * 120ms + 200ms); }
+.kp .kl { font-size: 14px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.02em; }
+.kp b { font-size: clamp(44px, 3.7vw, 72px); line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kp .ku { font-size: 0.36em; font-weight: 500; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+.kp .ks { font-size: 13px; color: var(--muted); }
+.kp.hot b { color: #FFB385; }
+.kp.hot .ks { color: #FFB385; }
+.kp.hot { border-top-color: rgba(243, 115, 33, 0.55); }
+.kpi-l .kp:first-child:not(.hot) b { background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.clock { font-size: 13px; font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-right: 4px; }
+@media (prefers-reduced-motion: reduce) { .kp { animation: none; } .kpi { transition: none; } }
+.fcard .fx { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); word-break: keep-all; }
+.fcard .fx b { color: var(--ink); }
+.kp b { margin-bottom: 4px; }
+@media (min-width: 901px) and (max-height: 899px) { .anv-row { margin-top: 8px; } .fcard, .pcard { padding: 10px 12px; gap: 6px; } }
+.anv-row.one { grid-template-columns: minmax(0, 1fr); }
+/* F 카드가 한 줄을 다 쓸 때: 왼쪽 식(최대 420px) · 오른쪽 숫자. 분수선이 길게 늘어지지 않게 */
+.anv-row.one .fcard { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); column-gap: var(--s6); row-gap: var(--s2); align-items: center; }
+.anv-row.one .fcard .mini-k, .anv-row.one .fcard .fx { grid-column: 1 / -1; }
+.anv-row.one .fcard .frow { grid-row: 2 / span 2; }
+.anv-row.one .fcard .fl { grid-column: 2; }
+/* 낮은 화면(1366×768 등)에서도 입력창이 한 화면에 들어오게 */
+@media (max-height: 820px) { .stage { width: min(100%, 520px, calc(100vh - 470px)); } .talk { min-height: 96px; gap: 6px; } .a { min-height: 40px; } .hint { display: none; } .app { gap: 8px; padding-block: 14px 14px; } }
+@media (max-height: 1040px) { .hint { display: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <canvas class="sky" id="sky" aria-hidden="true"></canvas>
+  <header class="top">
+    <div class="brand"><span class="word">Q.V.I.S</span><span class="sub">Agent.SIM</span></div>
+    <div class="right"><span class="clock" id="clock"></span><span class="mode" title="AI를 연결하기 전에는 DB 값과 정해진 규칙으로 답합니다"><i aria-hidden="true"></i>AI 미연결 · 규칙 기반</span><button class="voice" id="auto" type="button" aria-pressed="true">자동 브리핑 켜짐</button><button class="voice" id="voice" type="button" aria-pressed="false">읽어주기 꺼짐</button><button class="voice" id="fs" type="button" aria-pressed="false" title="현장 모니터에 띄울 때: 전체화면 + 화면 꺼짐 방지">전체화면</button><span class="badge" id="data-badge" title="CONFIG.dataUrl이 비어 있으면 예시 데이터를 씁니다">예시 데이터</span></div>
+  </header>
+  <aside class="kpi kpi-l" id="kpi-l" aria-label="오늘 현황"></aside>
+  <aside class="kpi kpi-r" id="kpi-r" aria-label="알람 현황"></aside>
+  <div class="alertbar" id="alertbar" role="alert">
+    <span class="pulse" aria-hidden="true"></span>
+    <div class="txt"><span class="k" id="ab-k"></span><span class="m" id="ab-m"></span></div>
+    <button type="button" id="ab-x" aria-label="알림 닫기"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12"></path></svg></button>
+  </div>
+
+  <main class="main">
+  <div class="center-col">
+  <div class="stage">
+    <canvas id="orb" aria-hidden="true"></canvas>
+    <div class="core"><div class="name">Q.V.I.S</div><img class="hanwha-center" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAM8AAAA/CAYAAABHE5xGAAA7QklEQVR42u29aZAl2XUe9n33Zubbaq+uXqqnl5npnqVrBss0CBKEaPRICEmUSYUcjp6wHBJN2Q4gJFum9MPhPxarWhG2rLA2SrIV4B+RlCmFuyQLokhQFAFMAyQAApgGBoOunsGsPb1Ude3rW3K55/OPfFX9qqpnBUBCUt2I7Kp+lS/z5s177jnnO985FzhoB+2gHbSDdtD+MBv/KG4qgJCAqSliCsD0dWL6nb413fMvcHH734vdD2bOCZcuiYAOXutB+49XeCQC0w5XVx1enyXmvv4O/XgVePXe/14BcBYAzpy592H1pGH2WOClS3bwWg/aQTtoB+0/Vc2zY55NP+N27KuZGf0wtYMuX/SYWSAmDpfm28XLRvLAlDtoP/DmfqhXn5wkpqY8cM7faM7E6JuL8LPj/od6z5mFGAOH4xvNegyc85iedqWZeNAO2n8EPs9+/wd8n33Rnp/3HuxA2xy0/1CERxAxOUVMXCdwEdOYxjPPTIf7nvvGG9V09sppbaw+oI3FEVufrWNrLfJKBZHBARAFGCARAQACYAakrVx5M0Mw6xsbyjB8pEjTKBSN4Tvrf+IXXzl+/Hjr/kI66TAFYOqSyANE7qB9/y36gWqPq+MeCyMO8zP80MZRlTN+f2vixlAc/IckfAywM044JIQKrRDgiQASMCBABkcJkAEWZGYphaY5GoQOEDIrGJRnX2lc/zebAF6/r+81jQgXYJiaNODSgfActB8N4emaSAJg+1b7aUS4OJVvm1GSovxbnz1uCCdBPAThcUFHAdQAglD3XxkEEntCN94HuGru6KuI64A8IINPmzX35tdvSLpJstgR6l/5+QoarZzPXMoOXvdB+5Ew2yQQU5OlmfbMtN0vOKnnf63Reu2Vc17uOCM24OOgSmMjqg/3WwgnrLN+ylbmHsLG3VFrrtR8kTkSFkADJMgczASp+185RVHdx8lAnFQOR4cHgP4K0Oogvbm0gs7Wr6db67/r+w4HPPCkJSce24oHBpbx1H/1Osl0n2DjwIQ7aH8Ummdqkhif8+g76vApGH4Z+d5T2uubI074cdF+CorGCbZZFK9b2nxNLrot566Brt8MNe/jBFRMWS6TAQQcPKRQSg7h48iHoePj6h99NAc+pCJ9LM6CQwioqD2St9f+uJPG5Tyc8lxpczYUjav+zS+vAZjb1blfnvP41GQ4MOEO2h+68HRjNQaUsRX9uaMV/PQ/zHrNs86/+ZtnJDtDuEchnALUgiQU+Zv0fK36yf/pWz0mVoSvTcf42Fie4EIofahf9jj/qaL3muniaw9ydfY8Vm7N28IbC+3FNx7T2urRaqcDCBOMkgl6iqHdtubKq4BgreZNSXd3IXDDxzg9ff0Awj5ofzhmmyYnHS7AYfG6uAtJI7T25kj62nNHNP/qCbe5MhpC6iF3DFF8gnFylHBHGScduPhVwP1BweiLjT/zC7ffc4/rI+g0lx/1S68+mn/n84/ZjedPu7WbY5Vs4zFHPYEjg0BjAEAN7S3fdpW+37Nk+N9Hpx75Uhg6sVLlkSU+8siGPvOpGJ86FshLpslJd4DCHbQfqua5ArgLOB11Nc494YkqyNqbx5hlH7Wgjws464IFWXFLwDXGlSsm1LxQOGo1CphP2itr76vHaQsdYGHw0Jl2Gn31Vq5oMEbUZ5XBT+bkkUp9YAwJgPUVYKVTK+KBM27Up2ht1aq1zRkMxM8D2MCnjt0z2S7AAQo/AmGvg/Yfq/BcAAz9WeDTl/J7jreYvvDvHsHsy08p3fo4iY8LfBCyNYRiXqF4qfJf/53PkdwRNv3SX63g2N3ifQEV/+Jn/Y2pC+2hS19aBXCz2wef/upfdpZ3Hmwvtf5srdIBVhdgG22wL4yxGP2wmiv1PEoQ5+lNAG+QPRShRThgynDAyD5oP0jh2THVrsB46ZLhUtfPuYhk85N//qHOr/3lU9VjDz6RqnpewKOQGiDvSngNshe9Fa/2Cg4A8Bf+UQoA+sxnYpy45m7Mb/D0xrwA4FbR704AuAUgbCzsmsynV+7o6jPT9hFgF3JGMqw++09fSOa++3layID2EcvSB73lDzApGkCrofV5ryJ9FZvVvn0P2bdCTN/l26OL9yg+U1NTnJqaUs/937XQbV+n9xoHbIh3N+573rl+5IXnyoWuqXbhdIEeQmfrJ/74WIzKT8LwCbQ3H4N1TsMnqYBX6aNvw7nnIN1obxVzb3nx2dmA4bt2ugGg0Q/MLPDExI8LfSs8sTUijJ0zLF5XmcQzDZyDzpfaYd/ADV34+btb03/jCn38uqXFj+VM/lRUix+I+qsOcYr2yu1D3FwcKKKksq8fX98gJt7VeDkAnJqaAgBNT09jZuaiJL2rl7kdTL5y5Yrbvgbe4nkO2n7q1pUrV3jhwgWVf9IfuQC9o/BcWLwu9K2If+YvFb0P1fmVTz8J8Gl499OwfBR5AMyuMkq+qrjvt2p/4dIf9D6cLk8m07geeik792dXf+ndD27JoI556Usdkh0A35V0Lf17P6OiMjQRJES1OmAdaHM9NrOYjpEk7h74GwAOvz2yUp5/X8bEpUvvEp15i2DyQXvH8fqRbO7+Eg9evnzRAwCfmQ78M10z6/Jk0v7tf3K6/fn/6+PoO/RJJvU/Vh3sHwUEWf4KrPg9Sl9bHf/j39krOACSj1fPVXR5MpEue2nSaXLSSaKEdzSZ9hxOz30mxgMPJBg6XdXkJ6q9A55XT962geN32XdoBa4mWDCmW1BrJcLWst+PMt44mKkH7QcjPMAkz81gf+pAfzxqxdZHmLb/C7noT8fV2mkEosjtuhN+Q7LPVqQXjn/kx3aTMy+iwEPj6Xg/MlxEAVwUMEFcuOCAaYepSb5L1X2PfX3+UwEDAwGjh3IAu8GHk4+aHz29hv7DCyFUgEBHGVDkUcjzfc914waA6ekfrTezf8HYdQAHaRbvxjd6L99/r2N9f7Nt+jqTkaPce/H2Z3/xjLP0J2T2JymbCAQys5dp/ILz+Lf1Z/7WLptrG1UjL4Xdpsql9/N8vf0p1fnERMDNOeIv/p2AS/f+XDl8uGqtvhTrXLXVFn1wCAIkI8T3lf5wn9QJAdD7AAt4v2fZdx3yP3npuM/CuctP7B2z79f/eT/fj/Z2dpe5pUkHTCUA6ulr3x4NeTifZJsfLrL2o85FsKgyg0rf72ZF+vv9/dEL+wQnSyKMnQu7BmNqivfzdSQRM78zDGAEjlWEqA21VwCs9QxaV1tOo9Revd+fdDNT16OJiQd8Xm1ETt6stZZJDjBKkiAhvAvh2TcOk3JLS0uNer3enztXy7LM+TjuRLVaa25OnaNHkfVqP5LatRISgMDZ2dlqf/94I4ROH6vwJmWs1TaGgC0Axfe7epLEW/kIe6+9jfbtRQ7faUL1TOide73Nee/1mtr+2T2vsr6Oehy3alnmEgAIieVJCJ1ms9mW1NkjUNz7/O+lb+9V0Nx9B+XiOZ39+BOGq+MewACAU1Fn+aPO7GO+s3422lqMi5U7N7m1/Hnvk8+GoG/hP/9ba7vucOxucXVgM8OVUlB2in5cuODe0oR0/hBkj4egpwrkj8NFo3tXG1y9ynslcwCcPNYdnEuawLkCDz1WxK4e4F2gcxbuDSoBEvdZ0E8PxHqLydGdaXAN3xhJybMo9BQUf8RbPGHN7FSlglEANQB+aqq8z94Vc/rytAMQDQyM95vPTyqxD3i58874eLGRHpmdRdLzHddd1PzVq1e7PxFt/w7AX8XVqHtO7+ducsfM2G+O9FzbXwWiqakpj56fAKKr3ftewRXf8xz3jPnJSbd9jZ6DbyMMvee6+12zZ3npvaaT5DY3N/uCz8bNkkfk7QPy/EBk7rEQKifyeGAIQLzddwB+Zube7wDc9PS0m+z61W/Vt+743RtPXI2uXu0e2PW3Xc8giVHPUtT1QWDdAKJJYmf9Zl+0vPCwrc1+jNSHncKJtN0E0tbLYWvlq7VP/7PfHyYDfu7vAgDemPxE9fT1w3mXvhPuh1aVsaMLDhcuhF0rg2M1GEYAHKKALIRasmf10LPP3kNgpgFgBnzimR0B0pSIl7+SI91IAXXg0IZUJ0mRDnTvuOpcuXLF7UHEnCV+1MkeA3AmiRADYZ7iq3Q5t7bStK+vr3XpEm0beZPuPdbFmYvARfgQOv0STznHJ4NsUOCsp+vUarhLsrX9XCpV3/tC5C699Ur/faNWly5dskvlA4YfMEqmct5xl5USQtznY3sgyM6Q7jBACliW0+tV55sAFknupJpcviw/MYF9NSsu9cChP0gE757wXL9OTOwGEEiq8+V/Ug25nUZz7cPe24McGQSaW0ZwAa2t27se+PJksrRxK8Z4FDDdFZR9sDCACxP1tH/zAfetzzZ09f9rocACgFUEa0tYIYJEt6Yo7uzr8eLijr2ryUlhfHy/1ugfypy11ovVyjKdW8kLq6lUPI7unf2d/v5+7sHi3CHvhhHsLKSn4thHWWFzJBSoLUXR8lupdpKwXzQCC14a6hP1AMEnAI5JNiTyZhwh3vPdHxkoe3vVfiefgO9hRu49935hAJJaXt7si5EcF/W4pFMAnIDbotoOfLVXcADgmWcY3q0p/oOP88yt7JtY7pUv9WdoPOhc9Ejt0EAE1w8OHtsC3UYEVwBf6zn7ejg08ECBmW+VKyhETE+7fStVIx72DBNCOBaARR+5FwCsIGRLkYtezByrKtIibUcr+yKazzyzkzs0BWDqkVntVsdXiWPnOz72y2F1/q75eLkIOgYScJ7gfYTnDICfuriNuHFhYWHXIuIBihgQeALk40nkXVFoWLJ1ws9ZwVs3gEhS6Po7rsecIQCur1cS70N/cDwG8AyEYxAEcKTjmvEP2MFWj9/F9yuQ3e/7Hm0Yvh8B225Wjs/bgi2SuNHKG6biGOXOAHwUkHdETcBs4lz9XT5D911Mv6PGfA/j4gC4PWjbK3tP8q2/99PjxNpJRdVDaBAh1MChYy+xNjAHX9/tnD0zHXR5MuyUfZqcIsYu7LPB8a3PHhbCMUpHy0VIte5ArnYPPPfcZ+LzH/3UPu21P+nuAoBLO+pYpb3UwqGH13n7lTX6pBnkHH1EOR+j++J2aZaVnKeP9chSbzHFrvCYWRXAMImjkfcAigTgETgNeeeqCeB6JgN7/EkCcN77OJA1iEMSjpA4QvIuYTWRO/D5Tak2sI4qBgFubDiSrue5umM4IABaXob19SEcPoxtE9l6zc2uAKHrQyS3bsFXKvDewzkHcs9CIkFmUAiwNEXogiDb13OSols9fnIAdPrePXcm5mXJnwP8AOA9wADoRHnOdoBYPSYqAcRLQCUDwvHSfMUsUKtbaJAcFnQEwDiASGCHjg8E2Mmtra07jUbfXeC5aGPj7ECn4+NqtZGHgCIE2KFDO+MSgIu2x9/a8fXW1hCRb1tJSmawEGDZIYRbJYtY96Lt584J1d/cdu4TAH24/e1RVoYfZ3P+VKwCtrWypHjsdTSGv+D7D89Etf51XZ5MXpn7Os8e6y/4zHTAGOzKlXP3OnlhsRykb//rIYTOaPbN/7eWOH8MsoJ0cyCXALb3qtWPfOTTOfDpbSnf5UPsIOqYJmYW3S7hKidMG4hT+CTAeZfEMZnE6BQ+gWyf8MxtBJ5++2AYCXgISa1e2Z5og5AGANW5bxHaR7lhxzmfiLGEmkn9jVoV7U4ngkBH+ptSrdZaGmar9YDRH3FtNswnte4LNgSY804WjC7KDEIYHFEnirS+uBaWM3OLx0dqSwA6eyHc556TGz3RHKk2dCiOK8PecbCQ1R0QG+F9Oby5l+tkVrQqNb+aDIRFoLoEoNkd07gFjPQ3syPwbohAFJRvrZF3Wysr8+Pj4+3tez4N1NN2e6jm/YAvihriWFtSp2hZc2iouo4SXdwWSi42m6Mx4mOJY2Vjo7PufWW93WpRhobzvm5EI47jOIkdWu101ISHSf5YBteXbTRXowgRfNQXV4OTy1rO27oVtraw7lYOD1aXAGyRNEl+ZmGhdrpxuC9VNhr7cAiFG3Ex+wDEFrqK0UPbq5kFo6DCe7fuK24h7oRFV61utIFOhCtXPIACly4Jkwhd6ewDcCJbWZhAY/i8a6+esGwLtrwwp5qu+JPnf7NojN6NGsPLuIji7D98NcZ0tx7u4oQuXJghLgG4dEnAZPl5nh9JQ/6Eox+FTHScM/J2DL/t8/At+Epv6aM8dHXVYfQRt9eMXgdcY22pxqLdAFw9TqoIcQWMMymEfebBrb/3MWDm3Fvexy2AqkMkg1kpTVESs8jzKqWGXOhzW2mfpOyVV17xy8vLFe+9k4bkHJz3W3Ficb8c+yTVIMUSQDIDlXeYOr9ZNOjrJyO4p0Q8DrNjBIcAJADMaIUg0RNWauvgY2wAmHPka5Hni+12G0tLS0uS0m2z6Nlnn43GxzeHLNJDzvlHnLNTQfYAwSHBVSnFcgwQOgFhK4qwbGZvmvDiarutpVotl5Str6OGOH+Anh+yUDwKsObhbkP65vj4+JrragwAqAODHjiNLJwiMIo0p5GrjHin08GNahWtnvfsWHCczs4LHKN3S7l1XotcvAZXNEgkMvPqDrxM/QQfEhRDfIyeqQkRiApJUNoQcdeIWwr2+uZm+nKWVWYlbb3yCqLGYKOvXeQPxB5ng/gogYdkOkyq5iJnkgqIZgQF0XkSQibYrMyuO7kXi63sTpE31yKMLbodc+gSpCkQ6AwWc288jM3FH0elcs5Xq0Od1iqwtTqvlaWr1f/h8teTHvv3jclT91bumRldHR/vueal0vb+xj8fccIjVHE8ELeV41r88Z/7Vk+WqMcrvx1L6jUV+HZCdP78eeDG5q6/SWLn5rUR21o5jK21MZJ9qNSRRQ2wyhbNsv2+7Yld/zt79uz9bPEAIUvTFNWoAkgA1CB0BMYzVURaa2arw4ePe+dYEeCAtgxwQhSBGCD1oCeHTUSapgDQBJFWUUXuQkxpUMI4qIcEPAjgEIEqAKNzmXbGRQ4ECbQhLPjIHfZgNTO4/v6xVwAsAEgl+aWl1qiv8CGATzrqQwAeJTkOsQ9UVM5IGYCcRAphzVGv0bGCgGyk1SpW6/UtVjAIs+MI+ACEHwfVD+AlEQvNZvNa74CFNB1AwCkHfgDkia6jPwehmlm+uYJ4tndtcvRHBHwAwsMmm4dDRNmbIOsGeNKFoiiCc86TjCQdBthPMIUQynsrAuEFdCAsJd69LofhIERAytXVyuzgIEIeuTjy7BPsCAwPkngMwHEAfV3bOCutstJLBhSDMICzDqjJLHH0g424thxhsbnP1stevDKszbWzWJ/7sI8x7hsJtKxgnc5GWJ2f3+s4+o3wTgiWQ2F1qhiVcATO1iBl+7TM0pZDNuMxsUhgsWRTX7y4XxNduUJcuCBgU2iOWVdrVXHnTqPznS8PoDV/VnnrIbVXjtK5CmqDbQY0WeSLlJr7tdsD787PLc38wswYebLIOQrgMQl9ECcIa3rvHKSYIOUgB1BGJ6IC6VgliU6Y0eXBChIdOJcLBpMsku/QcVPQajk5YBBqBsg5dGQoIAFEBUCfHKsAH0i8S+hcnGb5kHNMWmjly6gvD29tDTCOzgH8WL3qz8rwRFoUZwBUSGQCWhA6JGRQlcCQgGMEhwnSgNSbg2XZohn7IrjDhnCcxIMABiG04DmSp34XruOdq+e0oxDOADgjwEvoB7EBhTcSxL4XyRx0HILsNMHHQQwDmDeoSaFOIiIIOAbnIO99FIpQlbo+i9BCKfQOQAPEsKTxahwdEtDopGGAkYsjl6rl08Ui9UUwdUi1AG2AXCYUm9Qu54UyOuYQWGo3NEDUIAwKeAhETOq489F6hM2v7ReeV781HBfZg2qvPRrVsj4kAJxzjCtFXG+wNFn3TL6LH9vhh53fwyjAzIwvijwCg4fMwxgXgdW9kxNrc4Z0zIArBkypNxZ6f7TzinB9QpiYIIAGtHWcIT2NdPOcWsuPI20dAZ0V1cElJoN3RP+Gi/3qPpXy1IBw5e0lJwTQeXMQPJxDQrADHQIZQ3qYRAEwECLpCAJUiTiSMAIS2Rd7X4dnlBUBJeWBgAfSELLYYxnyb3gPFKZ5kv0SqmV2uO+ASiGDhD4ARwkehzQeR+6kI/sy4CGLlLdamBuorzeb8EeSSD9G4WdiH43IhXHG1Xqnk25AuOXI2watC/IkD0t4iMRxAKfNZKQySJErijdDAOD8MMU6YLUkqURZltVkqPoad6GFoSgqThwEeUTQCZIOVEpx2Ih6tHaPN+kBGq3mwWFARyAC5CEJAyZUIyCWFNO5yEcOIQiAUhBrBOclzAvaJFARcAzAyWq1dqga4QEzRGkejgEGOW4Mc2AjDWgWSJcrLrolFhHBNTOMBLO+CALJjGBmEulYATQM8LCoYUKjEoYB5Y5MI6y19sPTS2/WzYoxFOlhX4sBBjjnqWqdiJM6ML/b6BmovB29Q5qaCnj29wsg5AByK33kmqRouwAISekznzHMXjE+fcneiv/WCzqRl3YKg6DVqhUWDjvaWcuzCXSaZ5W1RhVXUsQDd9l36LusDr4cNxor+xgGYxOGiXcTpiBJ0O0A0EwA9AOIwXJC7AKw2K1EJwUABcGK96UiLqk0orroVTI4mGm5tWZJmEOAB9gE0O9K7ULJMpQmCejYL8kg1EEejSM/CGAQ5IOQXib01aIV341ghwlOkPyoc+VU3dzq5CBfpvBdQS8DWgQRyXQaYEuCJ3GU0jEQT4AUhT5HrUmqAzSSWZ7ndQjBEWC2m0RcFPCu1LQNAf2CtrVClcYYPciWL0NhvmQLsAqgpjKoXYEQS/SAnHfOOQBFUQDgMqTXALxE4A0J6yBrpE6AfKzTST9Y7ascdQ5HCR6lw4JB1zPXeWl4uLp0ZyNdiVG9KzCi0AGw5h0bzjsnqaBjRhMhVAFsETRIVYDDAIYBVkG+BTF0a8nLrFLxAvIKoCIA9C5KKB8nuvzXa8BAAK4HvkVJ3T1TLmS/+w9SgaFckr0nEOPW12LpWQBXSlbDI48Is7PviV8kgLh6lZiYiABXo2wEIYyzyI8jTysC7pj0YjJ07Gs2dOplPHBstYe3VwrMxJhh4sLbCo/3gMm6yDFQFEEqTcAVgJmkvKt9tmHdLgIogij9T2AgmA1IGCjnjfOkPFLQqjs8MS+FBlw0KmAsiaOqDD4PeYAhK21x1kAcgjRIsrbdx8FGBWtb6TBkfXGSNArjCKGjg41SyQezNQJvCPwGZN8V8IoYliB4iAugCyAdhALACMDjLGNXJHQDAOlUSCggGR0EK6H4Xhh4bavjuotJ5Oi88w6hCDsUl9KvL8+/24Xy6eA8PUIIntsUnW1fVju8PUDqELwraIZ03zC4GyFkW96xZtKbPvJ3QK2Y2UckPDzYqLi1ZueYdxwWEQMIrTzP675qFlDx1LCo8WoSN0AXZWkOmfKuGZiA6Ac0JnCIsMFKtVatRdtB0vn5fZOy+bf/lIkK5gCfCVYUTjKYybnIA6tN4kTBXdbbxXP3Jt/s7H4fyEyQ83CInUIEOCKkpbm0bTK9/PJ7q+ajbhC2WiUWF6PQ2Yx93qkgZP0KYUgWgrLWqm+uXyvqh79eGXxkFcAmAODqnJ/+28/YxcuXDbjQW79gh5+2xzfaERwASIsgkHdBvgToTYHzCGjCgZQlhCsLn5pc6d67Cs1O5MGekOFclw8XW0DkANfAesWq0agDHswKfNATZ0kcp3MVAB45QDKXgwcsIlwCqkay757du9PRxNpFn/O+H0BVAIogFEW4IfKrAr7uIv+qoZhlmq+TdGS1mYdAHzkIChAnUMZXThNsgVynsAkhEBRJJ5gn5QjH6Wm4ixfvN4bbfTM6OHZJF5yaAqemgHIigCY43z3ZyhqX8K4bFyIMEqx8wLageeeiF016PmZ617GRZb5ViZy7BafXGOxmCKEI4hC8GwNYKcyqsffxLFCpsz7o4I4ZwmMgnoRwNkmiihnilHCCBYCu1IiMBdQANZz3VccycOTeKiVBoTAHy3MIce7hLBBmgGQKluFTn2nvc7p7a6D1UGa2zarii/93Q6GolEFKBVie4fSFlA/2XOc8gE+9Q8bC1BTxs+O9Ee0gyXD1dyKmG4Nqrx1ikQ2LqJJuRSGbx/r8a5WHPvjKrj4vVNzYuXO7eF/vwLbdrgRcIu+FGcj5klyHb8j4vZAVqyRcFLkqCYcAAc5JeeRdNGDERJoVfQDPluYJIhCOpI/byUBOd0rSk1HkPwTiLIAjjoDt8ARUAPTdZThICL3A4WYzBaDMwzs6VAVUAGij/LxZ+uf4NsFrqWV3O43G2sl6vQ0A8/PKoiiLiZCArAsYBXAE5JBBoxDr3YUnlPN7h4ZngkIvNWZloxUIFgRzMwsmcwS3866CGWybB3hHClUgOKEIoQCAQCHQlcFUoUyokYQyysA2iGWCt5DHb/QNV9a259i2C7C1tTXXTovjIs+neRgDVDg4FTnipGgNuTg+KYWJyPGDkJ4i+RB3zGxAQoES69mx0EHCTOh00t74332cYxMNRqonGCyDFSHPmq2t3XT9SQf0O6wOu+7kFoaHy2DrG89Wdf3ro5i5cppRfZwu6itBnNBUdp/rLHQc8A6FCCcmiM1ZX5pd97Rl9ua3K1h49bRtzE8gdE5FURQhrq4xrs65NFvYnWohYui0G5uYcF360LvY5iTs+ruZAoRNgvOI+MYX+pKXxsYas4cONW4PDdVeHRysvjw4WH1lcLD6vZG+335poBa/QuBmEWzVSjge3QxaOcfIzI+a4SzBJ6LYn4Y0IsnMbNPMliHcBTBHclbSXRALAJcArWZ56BiQd+M7RngXAmKSUbm/mLJgSnOzdQfOWxqWOo3G2klyJ7B55Ai3zJIVISwCWiK5CcCSJAHEKsiou4AIgnX9uACgiONKvoepUKgUlAJkKEkGKGQWJAWze2yEOSB3Qt5NyQgQDA4ys12pD2amoggCkRJs0rAxNIT1njmwkxLS19d3N8ttMZjakvJtgScZK9MRBz0O6qnYu0cAHa9UKjCz3IJtlDA/5wDMSboraB7EvKBlQBsAWpIyR6TufqZQVI2JKHaMIsC7UsRkkBVBndbusro/O+6X6oc9Tky47lNgamamnKjNsToSHoOyx5VUHoSLBkAUsqIla3d6wvElo/vxgd3pBvdrq593C4uIcPVndzmpYf1mw7YWTqOz/khSd7HowGrfkmscWtDosfYeboLDprkB3PIzgAeuOJRM6p6FZrdmtYBdBA6SBZyKYBYEhGfepi4B+UxYX183CcE5BqLkmZEMzvmCRFTAxhxxRsKjceRGCHYIvGqmb5npq6K+BOc+L+nzIK5A+gaJFwXcyYuQakf45cHgGZeztqyEj6gEOhwD4Wq12p7IVje4WQciRALcdnV97WF2aFsb7KyqziHL9swjgqV7D4J0znmURftB70Hn1rd9wh1kFvsYJN3ppG6SkkqzR1BhkBUApqfvv/gTBOkjlrQn3+1rCKFIvIuOEvYE4T4cRzwuIEk7nbUi6HtFCFch/R6BL0L4AogrEr4C6CrFlwUuoqzcxDj2vD9g0DciVxSmIgV8BOQ5YAEeoe4Ghg5LSrYZrfzIp/Obf/0nIjx4Qr2BUQBAnNcAOxwMZ0B30nkOmqllZOyqjVoPKCU8/XSh5z5DnL7x9qjX8Kq1mmmB8+d7C5L49Ff+yrCKTiyLsrDpYb62zErfKuNGRz72eyezLk/mJzARcPGiASAuvLcNtkgYrKTtFAUrdxLUjgOtnYDvbm6bb7Va1UJMJPmekK5JCAUZwdyIwU6RPOlL7twtADN5lr8iahHgGqAtekHGPkEjAo5SeCQPGq0AgyQhqGLGSKVes25GqqPg5BjTWM8trWdZpVqCHDvljiudDqqFWC0dZTpIluc5BGUU816eWzdYWYFj1Ryqe+IIkWQVEbXI+8jRIQ+hCigxs6j0scrFaRaIG0QsISbpu4uAOaLoAhEiAetab11BcGah8olPRDXsj5tgecUGXZTXwRADdIJMQHBkLNlhkGcBPR5HHkBeALiRZcWLJr1B4Q7INdIgsAagDnGw9P0gAH0k4ySOEOHIkf0RzZFTOfJOB52NVkBas3RdCrmiyB1xhw79WOvX/qrf+tW/+kbj7puv8n/5jc2Tf/8P2rr9B16XL/oSOJgSpqaIChPkGBBwmOBoyQVDzCg67JLGqfaLz85VH3timRzb3BZEAdTlix5j54jFCeHijDA9QTy06nB+NnRTugP+0q9Cz/7jvgzV0/lX/p9hDY4ewebKLVnxZUCj9HFCX20jSiqM49rLn/ulytlbVeOnP52XJNZdW450t081/zaUoNJcKaPPIMrM7m1TOeoSJ9+KGLp90DkBDGYWJBYst+5yEvpAjg42uvFGat0Mb+RFuA4r5iq1eIWOm0hzIIr6Q6Ex0K+RrJjsDIBj1WoF7XarztLJlRNyErlJodzvCDQrbYrNzc1ocLDf96gWT8IHwntwW/sGADmEjB6pGXICAuGr1QrarU4/hEGJA88++0b16acf7EiKl5udCsEGgMFaxcMByDINOHI7PLGjMfo2NmrmojrpqlEUIc8L0TGFqU3Q6JDbDplUKqNnAOFdkiDqjrkA4OrVq656/jw7c0gaMbxKhRXomMsQAhA5aBDg0Z1xBjIBc2kaXpflL9aS+htM4pUkS9Em60UeGvQcjokc5CFCJ+Mk6b7Qofq+tNXqkTMtd+jUMgeOzgXUt0LHOrCQR4k/4Wu1TzJr/rcO+Sc3hxrHe1iawNzRaGYaJV9u6oLr0Dsw7mpwE2RGWRX0x3yl/ljV80ksbhyTdC/INgmi72iEzfHkRnMmxjQiNGdiLG8kmN4NcHTgD8HhI1BxwfcfGVJ94Dk592tA9C/p4uuQgUU2GFrt+lkAGJ7l2+djvTWXToDoVJDMAeQgcwIFocJLxeGuM7ztB3SPHSdZUhAUTAgQutex4LqrOcGddIkCgMAWnDYUbN1QrLPwG1EIm1EUbbLwG3mRrqVZvmLQCsDNohCcAwjnuxCDybkCKO8lsiBQOIciTWX1en8vC9sAWKWC4LXte+w4vEYik9im5xagJsHMOYBkA9CYp8ZPPjJ4+Nq1a33NJkYjuSFHDEIa7Ek17RNdA2Jf2+LByU88Gz33medikkcc3IjAWqlWrCNpE3TrpDYl6wAqyoWry952CN4jLC4u29TUvf6fP38+TABFvY6CzuUQc5J51z8TQkE4v9vCIDskms5pw4nrzmndB2yEbGuThW0EhVUrbFmOy6S2SjCBXai6/9h+W3304Q12lt8EeC3Mrz1uhRtjFA9HlcpJOJxE2gbIwsf9L0n6HkvTIOAX/lHYzmeURHMvpADWJcxJoY8KqaA66SILdkrNtcKHQCwvZF0kCLwEA/5RqmefjU5fnTVe6hZif3LA80/9z7vK/OZf+acnZPYQoCNoDFzjyJFv1566+Eb2G780QedGIQ2hyOowOP7ML+zen+fa5QQTYwZcEO5TXGKfmea9k5R0uWYg0BHgCLL0dxPtASW053rdOA68pAqAKsmKmcX03kA1IayuN1P4cu1PIHcoqcbHHaJE1HAIJflSXvWqqw0YOEZySFCU5wXS1ACpSec6PshkFomogKwSSGWKSCKOYdK6gEH1cAvV6Wz7M6TKFOcqSsQOkHUgrAKch7TYaqXHBVUJnhDsQyP99eD7H1oISAdBPCLhWClcO4tyBdKoCQ8mjh/4a5/9yYEkIQsV5wA8DGgwFAUcuAZwidSqSaZyASIdIwgGwMNKrT44OGq92bvbY7yyIoOZ67oXVQJVEbH3UQC1KXFhvZliW/sIHIxjf9glybrJIOYjSOqEQ7UexbFULhLdIDGyLEUtriBC/3jYQX6mLzo+Mx0wfHKFm9F1dJqy4GhMBvtHhoChBKgJNeVoZZ0HNXxiAnMzr0maZ1RZRsh2abCV1353s97um/UKyIps3SuMKWjQuXBUWXtIITxWtDcrYBzr+d9K8MGPzZOH1gEDn376XkGNnjK/c3PPN47eePFk/rVfH5H4CEQPYNai5M7aUxfnjpGh9YXfXE+yO5lZJsgKb9bchbQt3DiSLb80nnxrvi/v/CrksJaYu4uf/ItLPYUk9vo4CYTBwb6dlIR+ghUAPimh4735+b3JcJKkYME572swDA/1V7G21R5xdHWTAumWqPwm5O6EEA6DOALgfJLERyltZFlog2iX85i1KPG1xLn+NM0fIHDYzFIJS6S7SWJFZfpaH51GBhsVbLSzQUg1Q/AeToOD+zx0dToA4wikRTJr1OrVSuSAzWYnltARbJ50AcApCocAHILwEABfq/qTlF9pZ6EPjscgnfTeowjW6ZqMFZbQ90dAHKvWo7sAqKx4kMQEhGEQLYJ3Cc55ciUwJMEogkm9XoEZXKeVVruMjrfMv7FhiFuokBwcbFSwvpWOOLBOuUy0OaO+J+B0XoSjLONtj1biqArnHshSWzGFrS6ZpBLH3jui0k6LowSOorQbV4oiZBHOz3a1xSQxc90DCIj6VvK+o9d8a2EWVjRcUj2LRnwEFQO2toDVHBaP9LsoejKs3131xx75jop0a+/ua8P/4C938PQvLOBwbV1by7e9woCc71NafFCueArOH5ePR1xc6w9JUvO3bn1HCjNvl/U4tDY3FmQ/BgunnfNe0Bwdrlc85o6WqxSisDwmhz6AgqGtTt6LtjVQNM/4oA9AOOpoASG8VoYhsUjnJLNdCXhmkAHeQ5UeB6is9wAGKbK9mZFdV4JXrgAXLsDW19eLvqHRQmb0PupSeVADkYRIWYXRnGXhJREPCYgpjBAYiRwfMTCjC0WQSpDGMYm8j5xDQqJPUpBhEeQ1mc2Yi+YQOVFWldAAgDiKkYUOHXxIEiuAIdsPtLYt8nFRFGZ0gOsCrZACvNt0wp0i2Lx3flCwQYBPAjoE4Ejk3CMg2sqLBIJRSoqi2MgYrcFUQKgJqtHhCYIfjCLXDGYEOSiwgbIm2ByI15x3twqGVeVuAFImoAgBUBBEFJSFIkB2OLovuBQA8zQnKOn6jzULihn5drB81TF6Hoax3OyDgh5O4uRkFGHM4JoCOgDa3VTcinOO3sGTrAPYgrgBaTHPbTPa2S1g+joxslk6ikeObAHYknS7+Ma/Psmkcr7d6jxeUwA2WmhupXADtT6Xbj1hcy8TWceHxuEtSTM9ZgDxtWmH+mAHH/yT61VydhuJyj/3f2a0MCLoMJwfI0EVWR6Wb2T5xlwbwKv3yz2X5Ntf+/XjFuy4iMMQ5xjF16Kf+Au/Vzq3f74cK9s8BKEfZhGCPCPUdlKSF14+E9bvflB550mzMExpQ7I1WKj2JNTtyjrMj8IqW2iBXFpvpmg0KiB4C8A8aOtmLn2rFP4LF0qTrVqt5mZqEVwOwebWm+kxgUug2pHQYQVt5HgJ0DiEpESEcITOVXpS27bN1pjOwd0L4d0B9CKAq/ScMcbzCNkAiY6A5fVmekrQIoElUltWpmWEPX1WCMq91BK4CujuVrOzQsALmJXZkhwXchc6gmtE4BBAD+BxEie8dyPC9q6yWBawBHA5y22NQN5lJh9CSd48RIdDpfIgADQJLkq6DuB7KmzOs9gIjpsIXARxK+2k9ZJli9sCl5xTK3+L8EABWERteeHuejM9DGCB1JYL1oSFBcSVa6IN5nmIAFbyPH+4mlRqEmrdlTFDOe9iOgfvdmzCJQe8CWA2K8JatIteM3V9H3iw/vf/7MuV+sDvmyWREeOm+OFGnQMhsrGwNTdQvNmuu4XXC8UNtF/6wsjmC59b6zvz06sA2vjYRX8v+BhtlTEzBknfKr75z48yy0YBOHgfoeiMq736pGuv1du//j+eFuI8agx18t/6O8g+93/EzNtJ57NT5vuGjqAyuG6+uhoxuRkdffj5fbn1hRVQDgVVKR1ysXso+9I/6SSjY7WQ8SkV+YepYgiwDRG3vLgAdWHmyUm3t67cCSAsFTbHyH0TUN6lidylc887p1veVTbvIzy7Jubo6Gi+vJmuEOG6A78gaZTEKwbeTqpFqwls1Sx7Q4y+CahDRHOCjkslpx3SNjMEkLxK+z9IyiXcdMB1ya5VY/96q4I1tBMwZG+C+JqEBRBrMn03jtx8UaTtHVyip49xnHcqrr7SUvoGxW8K2uom0l6ncFO16vpRoHm303nd59bnnM+6uUOnujSgqMt6WCR418D5IoQtAkUcuUTkEUgPCDgmIFYJV2aOXJU0B/J7KPQio2Sx3d5oJv39yzB7mWSN0M2StqM5mb4H55dP3KcmAQFkgFU9b7LA75l0h463g+lGHFe2bt58devUxMTNfLNdDyY5xw2AtwEkEmIzRd6xAEQIvswAQZkkR74K515B0Fyepps96NUlYeLivs4MxOt3mhz+fFStvVoIP4W4fwB9GPCJ4JvLldbK3ZMh6Us5eHQYh0494rY2bqQrL75aOf74QheeTQA0pfx1kqulUCZtpauv4s7z47a57JFujiLdqltr5Rxbm2dItwXnmyLW5Mwo9Zs4gJC3tLV2x8Fd0+ipFzerp9dGHnx4fR8yVqSbCmkOoWZ0J8HkwxTGwvryoIyP02xM0Bx88ryBV33MZSheLKlFc17aV5wi5NLrEdzvWLDngwASmxEwn0pLaWt5vVYbtbcRHpRFDyoLwTW/LvA2iVphWo8j3Oyg0zqMRrZudpdVVzizO6HQtwANdR13GuCc81aakcHBYPQoHF2eqVgrFwC3UKm0lyqotFc7gIt0LQ/aANwQHTpO8awU3x4YiFv3E56NjcG2c5tLPklCMFuB9LzgAbPlalS7WQM6jizuSosOne9StgC5F0wcCQEVePiS0OY2g9M6yHUzZRLMOYtg7Id3gyhsUAGRDKSpENk0Yt0YFutJfbZWw3rjpTcLnD+/uIH0O8zCXSWu3wTC+S0lWs6ybAFIwv0KkQAI69L3nI8yszBEoUnvb+d1NCcmJuzWLWxUR+zlGPE6Yd8zuDEBCYXIwXuVRCyYBecAhQBBroC0HKBlOm3kjNP7w7KXL3o06zF+/lfS3v1AW7/88z+DIv3vkLd/pl7JgPUVNDfbQHWg7UaO5xg+sYzBIy/7waPfZf/YHZc0BFkNaSf1of1ya23t+fqf+G9mgeX+/M3Xn3CttafYWn1EzeXjaq4eUmdrVEXWD5Pkkw0m9WVESZBshCEfVsg3KPuKc/5fRX/ub17Z1jiSfM/vUedf/OLTRPgvQf8TLkkqqtbvuEZtwTlUlRcjCHlLFq5GPv4cPvnX9u3mgIsoeje/ksSrVxEdPoyoUinp9/cpuvGW1WD2FNpzNwDnu/ZKTxGNXlKlX1pCFEXwb1OYYqcoRVHAjh7dVYjDtq8zO4soiuDMoE4H4fTpsqiHc7ReyGBvHwG42a7LM74b0tbe85aW4Hv7KsGyIRQpELbJd7608egARktw3pfs6u3CI/kwQgqEE/cg/977+G5/GAB1ALsDhAtA2Ee7ukdPcADcrT1jfeLe+AiAu3ULUa22M9ZvFSiXVBZG2S6SYgbdn2Ewdo6owmFmOi61YElHmf/Hf+VaI/ZfogJQiQdQC2MoKuNJvTEY91dq8O2BdPnGMa3PHZdP5s3HOYSIRZYWnfUzWJt9eOubv7YSDYxWbPj4SV8bfJiO4wrFGC0fhtkQ6BuIvOCjTXo/hLL4xDDp+kHXLFNM8WT+2/9bM/vNvyEoSorP/e/V7DcuZUVaWOdf/s2EIfuQwU45r8NCXAdRIViD47qgORT565anL6CYf23fhF8dFzB7v/SHvHu8r9YFQexthMu9VWmn936vHbZL2H5/7zLF4223P9ku49TLI/sht+3+vNf72f3G8lkpOlEKR+ipFfe+3+n9hecK7Or4XP56Z2LXQBbx2GzOO59PnH8ZQ8dOot896VudDxdZ61wMa6BYQ6XIq9gsnmjmehRkh2YGK1KE7IyK/CkSudqbFdit4RAvjjKq1BklCeKKg08C4qiDqNKh9y04381AVgZyi87noD8Kuk8Q/mH4agFIFszBrCBEWlYVdIJlYYIqCEfHGKTA+DZjPe/T9gsdtO8i3Fzb9+yfmv2Bby//jgUDywXiB1boUD+kHW32Aik/aq0bb3zLrManS1bID6z44TsOxHZp3N64iySmt6+fidpLHw0LNz6m+Vc+bHdffUQb84cqlsJAZHJQWTTDOceyOpOPyqyN7eJrdEBUEZO+nNW+JquNVVQby6xUN+B8TsHBipgWIoC9UWHB0eRYcreCecvzitK8pjyvMgQvKTCOC1etB9b6NlGrv8G4+g1fib+Ep/78d3ep++c+E+Pfzob7b7b1R9Pe6yT9o9ol7b1ue/ijtk3i9zPO7l2c77D4G7F+6U9XdlF4Hvljr4Sz/9l3/MkPfcUPjP2u6H9TWeuzTDd/S52tz6vT/BJk32aU3EB1YAN9I+b6DxG1wQ6iyh2E4ttqb34R6dYXlKdfhIUvGtyzcvEX5SvPMoq/BPL3Cfw+xC/D+Sug+xLIr5kVL0B6iVH8JuLqGqKqI6MjkB5GKE7BQkTpDcB9ScQXAX2ZDl/3zl/DU0+/tk9wNhPfrYPwdoPsnnvuuVhSIim5dk2JpEiSe7cvQBKfffbZSFLy8ssvVyTF23XpAGBScs8++2z03HOKy7TkdzyS7hF3++InJ+WAnb1lfPceyTVdezf9pSRevnzZd89NJCXd577Xz7J4un/uued6+7Grb937xt3vRt2f+/q95/zoctnn3v1xvKT4mpRcu3Ytee45xd3P3nbMu88Q32+ct6/7dv2/3zEzM7MzzpL8u9M8gMP16+J0b8p1Aikd6KyvH/Yv/KvRcO3KkM1dS5Ki4wMY5b4S+bHTD6Ax9pirD5xlXD1kAFTk8y7d/F5Yv3Mdi6+/ieqAR98Rh/4x8/2jmZJGyzfqnVxOseUORR7Fgitc5OBgUd5SYYUr6BiPHD2EqO8h5emT2Fz/UNhaPY1Oq0AIL8C53/H1ga+qluSI+4IaSTOgvlr7Yz93uzcIq8lJh6kJAhftncq/AlMsi/zuRtTe5x49Ox/tdXqnAE69xxV0amoKU1NTXQI/9Vb3ejf9lcTu1iN7rv0++jkFTOHedd6Fj9PbP24Hm3uvh6l33hfp3Ywz3sc+Te9IgnwfKo+4cmWfaYdv/+aZkOcflvQkZCcV8kRm86BeQKFvJBf+4syeHRAiXLliveaTJOLKFY/jbY+zP130Imx46YtnQnPzI2qufxxbKx+15sYJpM01heL3PDEd/dzf/fzeQvSYQfGjZJ4dtP9wW/ReTr58+aI/NwM/gQWHS1/KeybmPpSGpFAdfEXtNWDxbjOs3NhCa/0ELThFtT4cfrLG+nC3eEz51V7h22NjFvdDXPIsDGNj9TjS5jEUajCuduSjuwDfjHx8a98W9s9cygQ4XZ5MMAbDFdiBIB20PxThuXhx2jAzKUyAfDcV5zutkjoydjTD7LU+tFaPKrdTjFuD0gteS3eAev0ae9KB36XG68vvvPokVu/+lDaWfxJ59igi38dKbZVx7Q6S/jkcPtJ6S7V7EUWp/i/p/e3weNAO2nsUHhJ6JxhXk5MO4+O+TDrLQbIl6bbNXn8TwkNgNK5QPQyFD+cvPlthre9Qa+Yr12vnfvLmPkceZYJcj9D4zpvfOVm88rUnsLbwYWTNJ1R0jiJPU7C6wrh6A8PHvusGj95CdWCfptoxC7cDoAeCc9B+mFD1OzpkV6449L9MvP55Ym6TKNYc7IxDslTgF/5dsa2hmr/83z/gh09+yFUbj7LS96CS2gDgM6KYK7bWb7O9ehehsIAISewN3nmYEcFCKAIgE6IoQXXgBKv1M4QeQNpOrLWxybxzV9X6KkceuONOnrsRhk7MVqL6PP7937+XovvQuIDzwOt/295NrbmDdtB+oJpnry8iCbhypesznAMmrhMzbWK8Tny+f1dEfXlzffnEUHgBPrqTyU04swlZfkJF+iiL9DSkrbKQnhBMRlOZ8At00+klK4oq25tHkLbG5Jwc8bqjvhm8+44V1qwnjQ0MHNmIonqK1dUWZrrmGQBMzQJTnwLOX9b3iZMctIP2/aNt76idJicdfnbc7zG9mH3xn32AzD+BPP+o8vYpZZ068tTKLGUPeh+6JU5deRhkpu72HCOkKgDv0rsvOxf/6+ji//rlXsrIAap20H6kNc+7ahfgAMR67jM7vgtJbXz58mwl62ww5E5lTs0hARHLYpFAWSSt6Fah8QQhUpDVCetnCAC0BnOtqNK4s5drtae4x0E7aD+U9v8Dlu/xF/QcsWYAAAAASUVORK5CYII=" alt="Hanwha"><div class="state" id="state" role="status" aria-live="polite">무엇이든 물어보세요</div></div>
+  </div>
+
+  <section class="talk" aria-live="polite">
+    <p class="q" id="q"></p>
+    <p class="a" id="a">불량률, 호기별 차이, 가장 큰 문제, 방금 검출된 모듈, 미조치 알람을 물어볼 수 있어요.</p>
+    <div class="facts" id="facts"></div>
+    <button class="more" id="more" type="button" hidden>근거 보기</button>
+  </section>
+  </div>
+  <aside class="panel" id="panel" aria-label="근거 자료" aria-hidden="true">
+    <div class="panel-head"><div><div class="k" id="p-kick"></div><h2 id="p-title"></h2></div><button class="x" id="p-close" type="button" aria-label="근거 닫기"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12"></path></svg></button></div>
+    <div id="p-body"></div>
+  </aside>
+  </main>
+
+  <div class="dock">
+    <div class="chips" id="chips"></div>
+    <form class="bar" id="form" autocomplete="off">
+      <button class="mic" id="mic" type="button" aria-pressed="false" aria-label="음성으로 묻기 (예시 동작)"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg></button>
+      <input id="ask" type="text" placeholder="Q.V.I.S에게 물어보기" aria-label="질문 입력">
+      <button class="send" type="submit" aria-label="보내기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+    </form>
+    <p class="hint">예시 데이터로 AI 없이 규칙만으로 답합니다. 자동 브리핑이 켜져 있으면 스스로 묻고 답하며, 화면을 누르면 15초 동안 멈춥니다. 마이크는 실제 음성을 듣지 않습니다.</p>
+  </div>
+</div>
+
+<!-- 스크립트: 일반 <script>로 차례대로 읽는다 (파일을 더블클릭해도 동작하도록 type="module"은 쓰지 않는다).
+     앞 파일의 함수·변수를 뒤 파일이 쓴다. 새 파일은 번호를 붙여 알맞은 자리에 넣는다. -->
+<script>
+/* js/00-config.js */
+/* 00-config.js · 설정: 숫자·순서만 바꾸면 되는 값은 모두 여기 */
+var CONFIG = {
+  /* 자동 브리핑이 스스로 묻는 순서 (20-rules.js의 RULES 이름). 'event'는 새 불량 알림 */
+  autoOrder: ['trend', 'stats', 'compare', 'rate', 'event', 'issue', 'alarms', 'detect', 'event'],
+  /* DB 연결: 오늘 데이터를 JSON으로 주는 주소. 비워 두면 예시 데이터(10-data-sample.js)로 동작.
+     모양은 data/SCHEMA.md. 주소 뒤에 ?data=주소 를 붙여도 된다 (예: index.html?data=data/sample.json) */
+  dataUrl: '',
+  /* dataUrl을 다시 읽는 간격(초) */
+  refreshSec: 60
+};
+</script>
+<script>
+/* js/01-util.js */
+/* 01-util.js · 공통 도구: DOM 찾기, 숫자 표기, 통계 계산(정규분포, F분포, 분산분석) */
+var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var $ = function (id) { return document.getElementById(id); };
+var f2 = function (v) { return v.toFixed(2); }, f1 = function (v) { return v.toFixed(1); }, num = function (v) { return Math.round(v).toLocaleString('ko-KR'); };
+function ncdf(z) { var t = 1 / (1 + 0.3275911 * z / Math.SQRT2), y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-z * z / 2); return 0.5 * (1 + y); }
+/* 분산분석(ANOVA)용: F분포 꼬리 확률 */
+function lgam(x) { var c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5], y = x, t = x + 5.5; t -= (x + 0.5) * Math.log(t); var s = 1.000000000190015; for (var j = 0; j < 6; j++) { s += c[j] / ++y; } return -t + Math.log(2.5066282746310005 * s / x); }
+function betacf(a, b, x) { var qab = a + b, qap = a + 1, qam = a - 1, c = 1, d = 1 - qab * x / qap, T = 1e-30; if (Math.abs(d) < T) { d = T; } d = 1 / d; var h = d;
+  for (var m = 1; m <= 200; m++) { var m2 = 2 * m, aa = m * (b - m) * x / ((qam + m2) * (a + m2)); d = 1 + aa * d; if (Math.abs(d) < T) { d = T; } c = 1 + aa / c; if (Math.abs(c) < T) { c = T; } d = 1 / d; h *= d * c;
+    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2)); d = 1 + aa * d; if (Math.abs(d) < T) { d = T; } c = 1 + aa / c; if (Math.abs(c) < T) { c = T; } d = 1 / d; var del = d * c; h *= del; if (Math.abs(del - 1) < 3e-7) { break; } } return h; }
+function ibeta(x, a, b) { if (x <= 0) { return 0; } if (x >= 1) { return 1; } var bt = Math.exp(lgam(a + b) - lgam(a) - lgam(b) + a * Math.log(x) + b * Math.log(1 - x)); return x < (a + 1) / (a + b + 2) ? bt * betacf(a, b, x) / a : 1 - bt * betacf(b, a, 1 - x) / b; }
+function fsf(F, d1, d2) { return 1 - ibeta(d1 * F / (d1 * F + d2), d1 / 2, d2 / 2); }
+function fpdf(x, d1, d2) { return Math.exp((d1 / 2) * Math.log(d1 * x) + (d2 / 2) * Math.log(d2) - ((d1 + d2) / 2) * Math.log(d1 * x + d2) - Math.log(x) - (lgam(d1 / 2) + lgam(d2 / 2) - lgam((d1 + d2) / 2))); }
+function mean(a) { return a.reduce(function (s, v) { return s + v; }, 0) / a.length; }
+function anova(groups) {
+  var all = [].concat.apply([], groups), gm = mean(all), k = groups.length, n = all.length;
+  var ssb = groups.reduce(function (s, g) { return s + g.length * Math.pow(mean(g) - gm, 2); }, 0), ssw = groups.reduce(function (s, g) { var m = mean(g); return s + g.reduce(function (t, v) { return t + (v - m) * (v - m); }, 0); }, 0);
+  var d1 = k - 1, d2 = n - k, msb = ssb / d1, msw = ssw / d2, F = msb / msw; return { gm: gm, d1: d1, d2: d2, msb: msb, msw: msw, F: F, p: fsf(F, d1, d2) };
+}
+var pTxt = function (p) { return p < 0.001 ? '< 0.001' : p.toFixed(3); };
+function hmTxt(h) { var H = Math.floor(h), M = Math.round((h - H) * 60); return H + '시' + (M ? ' ' + M + '분' : ''); }
+function hmClock(h) { var H = Math.floor(h), M = Math.round((h - H) * 60); return (H < 10 ? '0' : '') + H + ':' + (M < 10 ? '0' : '') + M; }
+</script>
+<script>
+/* js/02-chart-kit.js */
+/* 02-chart-kit.js · 그래프 간격 계산 도구
+   규칙: 그래프의 x·y 좌표, 눈금, 여백, 라벨 위치는 직접 숫자로 계산하지 말고 이 함수들을 쓴다.
+   - chartFrame : 그림 크기와 여백 → 그리는 영역(x0, x1, y0, y1)과 X(), Y() 변환
+   - niceTicks  : 보기 좋은 눈금 값 (0, 0.5, 1 ... / 0, 1, 2 ...)
+   - axisLeft / axisBottom : 눈금선 + 눈금 글자 SVG 문자열 (글자 간격·정렬 자동)
+   - spreadLabels : 오른쪽 끝 라벨들이 서로 겹치지 않게 세로 위치를 벌려 준다
+   - textWidth : 글자 폭 어림값 (여백을 글자 길이에 맞출 때) */
+var KIT = {
+  FONT: 11,          /* 눈금 글자 크기 (viewBox 단위) */
+  LABEL_GAP: 16,     /* 오른쪽 끝 라벨 사이 최소 간격 */
+  TICK_PAD: 10       /* 눈금 글자와 축 사이 간격 */
+};
+function textWidth(str, size) { var w = 0; String(str).split('').forEach(function (ch) { w += /[ㄱ-힝]/.test(ch) ? 1.0 : /[0-9.%]/.test(ch) ? 0.6 : 0.62; }); return w * (size || KIT.FONT); }
+function niceTicks(min, max, count) {
+  var span = max - min, raw = span / Math.max(1, count || 5), mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+  var step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag, a = Math.floor(min / step) * step, out = [];
+  for (var v = a; v <= max + step * 1e-6; v += step) { if (v >= min - step * 1e-6) { out.push(+v.toFixed(10)); } }
+  return { ticks: out, step: step, min: out[0], max: out[out.length - 1] };
+}
+/* opts: { W, H, xMin, xMax, yMin, yMax, left, right, top, bottom }  left/right를 비우면 라벨 길이로 자동 */
+function chartFrame(o) {
+  var f = { W: o.W, H: o.H, left: o.left != null ? o.left : 44, right: o.right != null ? o.right : 24, top: o.top != null ? o.top : 20, bottom: o.bottom != null ? o.bottom : 30 };
+  f.x0 = f.left; f.x1 = o.W - f.right; f.y0 = f.top; f.y1 = o.H - f.bottom;
+  f.X = function (v) { return f.x0 + (v - o.xMin) / (o.xMax - o.xMin) * (f.x1 - f.x0); };
+  f.Y = function (v) { return f.y1 - (v - o.yMin) / (o.yMax - o.yMin) * (f.y1 - f.y0); };
+  return f;
+}
+/* 왼쪽 눈금: 가로 격자선 + 오른쪽 맞춤 숫자 */
+function axisLeft(f, ticks, fmt) {
+  return ticks.map(function (v) { var y = f.Y(v).toFixed(1); return '<line class="grid" x1="' + f.x0 + '" x2="' + f.x1 + '" y1="' + y + '" y2="' + y + '"></line><text x="' + (f.x0 - KIT.TICK_PAD) + '" y="' + (+y + KIT.FONT * 0.36).toFixed(1) + '" text-anchor="end">' + (fmt ? fmt(v) : v) + '</text>'; }).join('');
+}
+/* 아래 눈금: 가운데 맞춤. 글자가 겹치면 하나 건너 하나만 쓴다 */
+function axisBottom(f, ticks, fmt) {
+  var labs = ticks.map(function (v) { return fmt ? fmt(v) : String(v); }), widest = Math.max.apply(null, labs.map(function (s) { return textWidth(s); })), gap = ticks.length > 1 ? Math.abs(f.X(ticks[1]) - f.X(ticks[0])) : 1e9, every = Math.max(1, Math.ceil((widest + 8) / gap));
+  return ticks.map(function (v, i) { return i % every ? '' : '<text x="' + f.X(v).toFixed(1) + '" y="' + (f.y1 + KIT.FONT + 8) + '" text-anchor="middle">' + labs[i] + '</text>'; }).join('');
+}
+/* 오른쪽 끝 라벨: [{y, text, cls}] → 서로 LABEL_GAP 이상 떨어지게 y를 조정해 SVG 문자열로 */
+function spreadLabels(f, items) {
+  var a = items.slice().sort(function (p, q) { return p.y - q.y; });
+  for (var i = 1; i < a.length; i++) { if (a[i].y - a[i - 1].y < KIT.LABEL_GAP) { a[i].y = a[i - 1].y + KIT.LABEL_GAP; } }
+  var over = a.length ? a[a.length - 1].y - f.y1 : 0; if (over > 0) { a.forEach(function (it) { it.y -= over; }); }
+  return a.map(function (it) { return '<text class="' + (it.cls || 'lab') + '" x="' + (f.x1 + 8) + '" y="' + (it.y + KIT.FONT * 0.36).toFixed(1) + '">' + it.text + '</text>'; }).join('');
+}
+</script>
+<script>
+/* js/10-data-sample.js */
+/* 10-data-sample.js · 예시 데이터. DB를 붙이면 같은 모양의 JSON이 이 값을 덮어쓴다 (data/SCHEMA.md, js/51-data-source.js) */
+/* ==========================================================================
+   데이터와 규칙: AI 없이 동작하는 기본 응답
+   - DATA: 지금은 예시 값. 나중에 DB 조회 결과로 이 객체만 채우면 된다.
+   - RULES: 질문 의도별로 DATA를 읽어 문장, 수치 칩, 근거 패널, 조치 필요, QVIS 의견을 만든다.
+   - AI(Codex)를 붙이면 문장과 의견만 AI가 다듬고, 숫자는 계속 DATA에서 가져온다.
+   ========================================================================== */
+var DATA = {
+  line: '모듈 2라인', date: '11월 11일', target: 1.5, inspected: 4730, defects: 87, closedAlarms: 11,
+  byProcess: [['스트링거', 34], ['라미네이션', 18], ['EL 검사', 10], ['레이업', 9], ['프레이밍', 7], ['정션박스', 5], ['출력 검사', 4]],
+  hourly: { hours: [6, 7, 8, 9, 10, 11, 12, 13, 13.5, 14, 14.5],
+    today: [1.2, 1.3, 1.4, 1.45, 1.4, 1.35, 1.4, 1.45, 1.9, 2.6, 3.1],
+    usual: [1.35, 1.4, 1.4, 1.45, 1.4, 1.4, 1.45, 1.45, 1.45, 1.4, 1.4], change: '13:00 리본 릴 교체' },
+  issue: { eq: '스트링거 3호기', type: '솔더링 미접합', lastHour: 19, usualHour: 3, causes: [
+    { label: '설비', pct: 62, leaves: [{ n: '솔더링 온도 저하', p: 48, act: '히터 설정값과 실제 온도 확인', who: '설비' }, { n: '히터 편차', p: 14, act: '히터 구간별 편차 측정', who: '설비' }] },
+    { label: '자재', pct: 21, leaves: [{ n: '리본 로트 변경', p: 15, act: '13시 교체 리본 로트 확인', who: '자재' }, { n: '플럭스 도포량', p: 6, act: '플럭스 도포량 점검', who: '공정' }] },
+    { label: '공정 조건', pct: 9, leaves: [{ n: '택트 변동', p: 5, act: '택트 변동 기록 확인', who: '공정' }, { n: '압착 압력', p: 4, act: '압착 압력 기록 확인', who: '공정' }] }] },
+  detection: { time: '14:31', module: '[모듈 ID]', eq: '스트링거 3호기', verdict: '재작업',
+    cells: [['S2-C14', '미접합', 96.2, 13, 1], ['S2-C15', '미접합', 95.1, 14, 1], ['S2-C16', '미접합', 94.8, 15, 1], ['S5-C03', '크랙', 81.0, 2, 4], ['S5-C04', '크랙', 78.4, 3, 4]] },
+  /* 통계 분석용: 시간별 검사·불량 수, 비교 기준(최근 7일), 불량 유형별 건수 */
+  baseline: { label: '최근 7일', n: 33100, d: 473 },
+  hourlyCounts: { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14], n: [510, 525, 530, 520, 515, 528, 522, 530, 530], d: [6, 7, 7, 8, 7, 7, 8, 15, 22] },
+  defectTypes: [['솔더링 미접합', 31], ['라미 버블', 16], ['마이크로크랙', 14], ['이물', 9], ['프레임 단차', 7], ['스트링 틀어짐', 6], ['기타', 4]],
+  compare: { eq: '스트링거', groups: [['1호기', [1.2, 1.5, 1.1, 1.6, 1.3, 1.7, 1.2, 1.4, 1.5]], ['2호기', [1.3, 1.6, 1.2, 1.5, 1.7, 1.3, 1.6, 1.2, 1.4]], ['3호기', [1.5, 2.0, 1.4, 2.1, 1.6, 1.9, 1.3, 2.2, 1.7]]] },
+  alarms: [{ eq: '스트링거 3호기', what: '솔더링 미접합 급증', min: 51 }, { eq: '라미네이터 2호기', what: '버블 증가', min: 27 }, { eq: '레이업', what: '스트링 틀어짐', min: 14 }],
+  events: [
+    { date: '11월 11일', time: '14:32', insp: 'FQC', type: '셀 크랙', qty: 1, module: '[모듈 ID]', shiftCount: 2, suspects: ['태버 2호기', '라미 1호기'],
+      route: [['셀 투입', '13:41', '셀 lot [LOT]'], ['태버 2호기', '13:58'], ['레이업', '14:05'], ['라미 1호기', '14:12'], ['FQC', '14:32']] },
+    { date: '11월 11일', time: '15:07', insp: 'FQC', type: '솔더링 미접합', qty: 2, module: '[모듈 ID] 외 1매', shiftCount: 1, suspects: ['스트링거 3호기'],
+      route: [['셀 투입', '14:20', '셀 lot [LOT]'], ['스트링거 3호기', '14:34'], ['레이업', '14:41'], ['라미 2호기', '14:49'], ['FQC', '15:07']] }]
+};
+</script>
+<script>
+/* js/11-data-schema.js */
+/* 11-data-schema.js · DATA 모양 검사. DB에서 받은 JSON이 틀리면 화면을 바꾸지 않고 이유를 알려 준다.
+   필드 설명은 data/SCHEMA.md. 필드를 추가하면 여기와 SCHEMA.md를 같이 고친다. */
+function validateData(d) {
+  var e = [], isNum = function (v) { return typeof v === 'number' && isFinite(v); }, isStr = function (v) { return typeof v === 'string' && v.length > 0; };
+  function need(path, ok) { if (!ok) { e.push(path); } }
+  function arr(path, v, each) { if (!Array.isArray(v)) { e.push(path + ' (배열이어야 함)'); return; } v.forEach(function (x, i) { each(x, path + '[' + i + ']'); }); }
+  if (!d || typeof d !== 'object') { return ['DATA 전체 (객체가 아님)']; }
+  need('line', isStr(d.line)); need('date', isStr(d.date)); need('target', isNum(d.target)); need('inspected', isNum(d.inspected) && d.inspected > 0); need('defects', isNum(d.defects)); need('closedAlarms', isNum(d.closedAlarms));
+  arr('byProcess', d.byProcess, function (x, p) { need(p + ' [이름, 건수]', Array.isArray(x) && isStr(x[0]) && isNum(x[1])); });
+  var h = d.hourly || {}; need('hourly.hours', Array.isArray(h.hours) && h.hours.length > 1); need('hourly.today (hours와 같은 길이)', Array.isArray(h.today) && h.today.length === (h.hours || []).length); need('hourly.usual (hours와 같은 길이)', Array.isArray(h.usual) && h.usual.length === (h.hours || []).length);
+  var s = d.issue || {}; need('issue.eq', isStr(s.eq)); need('issue.type', isStr(s.type)); need('issue.lastHour', isNum(s.lastHour)); need('issue.usualHour', isNum(s.usualHour));
+  arr('issue.causes', s.causes, function (c, p) { need(p + '.label', isStr(c.label)); need(p + '.pct', isNum(c.pct)); arr(p + '.leaves', c.leaves, function (l, q) { need(q + '.n', isStr(l.n)); need(q + '.p', isNum(l.p)); }); });
+  var t = d.detection || {}; need('detection.time', isStr(t.time)); need('detection.module', isStr(t.module)); need('detection.eq', isStr(t.eq)); need('detection.verdict', isStr(t.verdict));
+  arr('detection.cells', t.cells, function (c, p) { need(p + ' [셀ID, 유형, 확신도%, 열(0~23), 행(0~5)]', Array.isArray(c) && isStr(c[0]) && isStr(c[1]) && isNum(c[2]) && isNum(c[3]) && isNum(c[4]) && c[3] >= 0 && c[3] < 24 && c[4] >= 0 && c[4] < 6); });
+  var b = d.baseline || {}; need('baseline.label', isStr(b.label)); need('baseline.n', isNum(b.n) && b.n > 0); need('baseline.d', isNum(b.d));
+  var hc = d.hourlyCounts || {}; need('hourlyCounts.hours', Array.isArray(hc.hours) && hc.hours.length > 1); need('hourlyCounts.n (hours와 같은 길이)', Array.isArray(hc.n) && hc.n.length === (hc.hours || []).length); need('hourlyCounts.d (hours와 같은 길이)', Array.isArray(hc.d) && hc.d.length === (hc.hours || []).length);
+  arr('defectTypes', d.defectTypes, function (x, p) { need(p + ' [유형, 건수]', Array.isArray(x) && isStr(x[0]) && isNum(x[1])); });
+  var c = d.compare || {}; need('compare.eq', isStr(c.eq)); need('compare.groups (2개 이상)', Array.isArray(c.groups) && c.groups.length >= 2);
+  arr('compare.groups', c.groups, function (g, p) { need(p + ' [이름, 숫자 배열(2개 이상)]', Array.isArray(g) && isStr(g[0]) && Array.isArray(g[1]) && g[1].length >= 2 && g[1].every(isNum)); });
+  arr('alarms', d.alarms, function (a, p) { need(p + '.eq', isStr(a.eq)); need(p + '.what', isStr(a.what)); need(p + '.min', isNum(a.min)); });
+  arr('events', d.events, function (v, p) { ['date', 'time', 'insp', 'type', 'module'].forEach(function (k) { need(p + '.' + k, isStr(v[k])); }); need(p + '.qty', isNum(v.qty)); need(p + '.shiftCount', isNum(v.shiftCount)); need(p + '.suspects', Array.isArray(v.suspects)); need(p + '.route', Array.isArray(v.route) && v.route.length > 0); });
+  need('events (1건 이상)', Array.isArray(d.events) && d.events.length > 0);
+  return e;
+}
+</script>
+<script>
+/* js/20-rules.js */
+/* 20-rules.js · 규칙 기반 답(AI 없음): 질문 의도(QA) → RULES[의도](DATA) → 문장·수치 칩·근거 팝업·조치·의견 */
+var RULES = {
+  trend: function (d) {
+    var hr = d.hourly, n = hr.today.length - 1, now = hr.today[n], cross = null;
+    for (var i = 1; i <= n && cross === null; i++) { if (hr.today[i - 1] <= d.target && hr.today[i] > d.target) { cross = hr.hours[i - 1] + (d.target - hr.today[i - 1]) / (hr.today[i] - hr.today[i - 1]) * (hr.hours[i] - hr.hours[i - 1]); } }
+    var j = n; while (j > 0 && hr.hours[n] - hr.hours[j] < 1) { j--; }
+    var rise = now - hr.today[j], next = now + rise;
+    return {
+      a: (cross !== null ? hmTxt(cross) + '부터 불량률이 목표 ' + f2(d.target) + '%를 넘기 시작해 ' : '') + '지금은 ' + f1(now) + '%입니다. 같은 시간대 평소 수준은 ' + f1(hr.usual[n]) + '%입니다.',
+      facts: ['지금 ' + f1(now) + '%', '목표 ' + f2(d.target) + '%'].concat(cross !== null ? [hmClock(cross) + '부터 초과'] : []),
+      alert: now > d.target * 1.5 ? 0.8 : now > d.target ? 0.5 : 0,
+      panel: { type: 'chart', kicker: '시간대별 불량률', title: '오늘 06시 ~ 지금 · ' + d.line, target: d.target, yMax: Math.max(3.5, Math.ceil(now + 0.5)), hours: hr.hours, today: hr.today, usual: hr.usual },
+      actions: [{ t: '초과 시작 전후 설비 변경 이력 확인 (' + hr.change + ')', who: '공정' }, { t: '초과 구간 생산분 EL 재검 여부 결정', who: '품질' }],
+      feedback: rise > 0 ? '최근 1시간 동안 ' + f1(rise) + '%p 올랐습니다. 지금 속도가 이어지면 1시간 뒤 ' + f1(next) + '% 안팎이 됩니다.' : '최근 1시간 동안 더 오르지 않았습니다.'
+    };
+  },
+  rate: function (d) {
+    var r = d.defects / d.inspected * 100, diff = r - d.target, top = d.byProcess.slice().sort(function (x, y) { return y[1] - x[1]; })[0], share = Math.round(top[1] / d.defects * 100), max = top[1];
+    return {
+      a: '오늘 불량률은 ' + f2(r) + '%로 목표 ' + f2(d.target) + '%보다 ' + f2(Math.abs(diff)) + '%p ' + (diff > 0 ? '높습니다' : '낮습니다') + '. 불량이 가장 많은 공정은 ' + top[0] + '(' + top[1] + '건)입니다.',
+      facts: ['불량률 ' + f2(r) + '%', '목표 ' + f2(d.target) + '%', '검사 ' + num(d.inspected) + '매'],
+      alert: diff > 0.3 ? 0.6 : diff > 0 ? 0.4 : 0,
+      panel: { type: 'table', kicker: '공정별 불량', title: '오늘 06시 이후 · 목표 ' + f2(d.target) + '%', cols: ['공정', '불량', '불량률', ''],
+        rows: d.byProcess.map(function (p, i) { return { cells: [p[0], String(p[1]), f2(p[1] / d.inspected * 100) + '%'], bar: p[1] / max, hot: p[0] === top[0] }; }) },
+      actions: diff > 0 ? [{ t: top[0] + ' 공정 불량 ' + top[1] + '건 내역 확인', who: '공정' }, { t: '목표 초과 원인을 근무조 회의 안건으로 등록', who: '반장' }] : [{ t: '다음 정기 점검 시각까지 현재 상태 유지', who: '공정' }],
+      feedback: share >= 30 ? '불량의 ' + share + '%가 ' + top[0] + ' 한 공정에서 나왔습니다. 라인 전체보다 이 공정을 먼저 보는 것이 빠릅니다.' : '불량이 여러 공정에 고르게 퍼져 있습니다. 공통 원인(자재, 환경)을 먼저 의심해 보세요.'
+    };
+  },
+  issue: function (d) {
+    var s = d.issue, ratio = Math.round(s.lastHour / s.usualHour), leaves = [];
+    s.causes.forEach(function (c) { c.leaves.forEach(function (l) { leaves.push(l); }); });
+    leaves.sort(function (x, y) { return y.p - x.p; });
+    var top = s.causes.slice().sort(function (x, y) { return y.pct - x.pct; })[0];
+    return {
+      a: s.eq + '의 ' + s.type + '입니다. 최근 1시간 ' + s.lastHour + '건으로 평소의 ' + ratio + '배이고, ' + leaves[0].n + '가 가장 유력한 원인입니다.',
+      facts: ['1시간 ' + s.lastHour + '건', '평소의 ' + ratio + '배', '원인 기여도 ' + leaves[0].p + '%'],
+      alert: ratio >= 3 ? 1 : 0.6,
+      panel: { type: 'map', kicker: '원인 마인드맵', title: s.eq + ' · ' + s.type, center: s.type,
+        branches: s.causes.map(function (c, i) { return { label: c.label + ' ' + c.pct + '%', hot: c === top, leaves: c.leaves.map(function (l) { return l.n + ' ' + l.p + '%'; }) }; }) },
+      actions: leaves.slice(0, 3).map(function (l) { return { t: l.act, who: l.who }; }),
+      feedback: top.label + ' 요인이 ' + top.pct + '%로 가장 큽니다. ' + top.label + ' 쪽 ' + top.leaves.length + '개 항목만 확인해도 원인 후보의 ' + top.pct + '%를 점검하게 됩니다.' + (ratio >= 3 ? ' 평소 대비 ' + ratio + '배는 이상 판정 기준(3배)을 넘었습니다.' : '')
+    };
+  },
+  detect: function (d) {
+    var s = d.detection, cnt = {}, max = 0, strings = {};
+    s.cells.forEach(function (c) { cnt[c[1]] = (cnt[c[1]] || 0) + 1; max = Math.max(max, c[2]); var k = c[0].split('-')[0] + c[1]; strings[k] = (strings[k] || 0) + 1; });
+    var parts = Object.keys(cnt).map(function (k) { return (k === '미접합' ? '솔더링 미접합' : k === '크랙' ? '마이크로크랙' : k) + ' ' + cnt[k] + '셀'; });
+    var run3 = Object.keys(strings).filter(function (k) { return strings[k] >= 3; })[0];
+    return {
+      a: s.time + '에 검사한 모듈에서 ' + parts.join('과 ') + '을 찾았습니다. 판정은 ' + s.verdict + '입니다.',
+      facts: ['판정 NG · ' + s.verdict, '검출 확신도 최대 ' + f1(max) + '%', s.eq],
+      alert: 0.8,
+      panel: { type: 'el', kicker: 'EL 검출 이미지', title: s.module + ' · ' + s.time + ' 검사 · 판정 ' + s.verdict, cols: 24, rows: 6, split: 12, module: s.module, time: s.time,
+        cells: s.cells.map(function (c) { return { id: c[0], type: c[1], conf: c[2], c: c[3], r: c[4] }; }) },
+      actions: [{ t: s.module + ' 재작업 라인으로 이동', who: '생산' }, { t: '같은 시간대 ' + s.eq + ' 생산 모듈 EL 재확인', who: '품질' }],
+      feedback: run3 ? run3.slice(0, 2) + ' 스트링에서 연속 ' + strings[run3] + '셀이 같은 불량입니다. 셀 문제보다 리본·솔더링 문제일 가능성이 큽니다.' : '불량 셀이 흩어져 있습니다. 셀 자체 품질을 먼저 확인해 보세요.'
+    };
+  },
+  compare: function (d) {
+    var c = d.compare, gs = c.groups.map(function (g) { return g[1]; }), A = anova(gs), ms = gs.map(mean), worst = ms.indexOf(Math.max.apply(null, ms)), sig = A.p < 0.05;
+    var rest = c.groups.filter(function (g, i) { return i !== worst; }), R = anova(rest.map(function (g) { return g[1]; }));
+    var others = rest.map(function (g) { return g[0] + ' ' + f2(mean(g[1])) + '%'; }).join(', ');
+    return {
+      a: c.eq + ' ' + c.groups[worst][0] + '의 시간별 불량률 평균은 ' + f2(ms[worst]) + '%로 ' + others + '보다 높고, ' + (sig ? '이 차이는 우연으로 보기 어렵습니다' : '아직 우연한 차이일 수 있습니다') + ' (F ' + A.F.toFixed(2) + ', p ' + pTxt(A.p) + ').',
+      facts: ['F ' + A.F.toFixed(2), 'p ' + pTxt(A.p), c.groups[worst][0] + ' 평균 ' + f2(ms[worst]) + '%'],
+      alert: sig ? 0.5 : 0,
+      panel: { type: 'anova', kicker: '설비 비교 · 분산분석', title: c.eq + ' ' + c.groups.map(function (g) { return g[0].replace('호기', ''); }).join('·') + '호기 · 시간별 불량률 ' + gs[0].length + '개씩', groups: c.groups, A: A, worst: worst, sig: sig },
+      actions: sig ? [{ t: c.eq + ' ' + c.groups[worst][0] + ' 솔더링 온도·압착 압력 점검', who: '설비' }, { t: c.groups[worst][0] + ' 오늘 생산분 EL 샘플 재검', who: '품질' }] : [{ t: '다음 교대까지 같은 비교를 다시 보기', who: '공정' }],
+      feedback: c.groups[worst][0] + '를 빼고 다시 비교하면 ' + rest.map(function (g) { return g[0]; }).join('·') + ' 차이는 F ' + R.F.toFixed(2) + ' (p ' + pTxt(R.p) + ')로 ' + (R.p < 0.05 ? '여전히 유의합니다. 라인 전체 조건도 함께 보세요.' : '우연 범위입니다. ' + c.groups[worst][0] + ' 한 대의 문제로 좁혀집니다.')
+    };
+  },
+  stats: function (d) {
+    var b = d.baseline, p0 = b.d / b.n, hc = d.hourlyCounts, pts = [], outs = [];
+    hc.hours.forEach(function (h, i) {
+      var n = hc.n[i], pi = hc.d[i] / n, sd = Math.sqrt(p0 * (1 - p0) / n), ucl = p0 + 3 * sd, lcl = Math.max(0, p0 - 3 * sd);
+      pts.push({ h: h, n: n, d: hc.d[i], p: pi * 100, ucl: ucl * 100, lcl: lcl * 100, out: pi > ucl }); if (pi > ucl) { outs.push(h); }
+    });
+    var runAbove = 0, best = 0; pts.forEach(function (q) { runAbove = q.p > p0 * 100 ? runAbove + 1 : 0; best = Math.max(best, runAbove); });
+    var p1 = d.defects / d.inspected, pp = (d.defects + b.d) / (d.inspected + b.n), se = Math.sqrt(pp * (1 - pp) * (1 / d.inspected + 1 / b.n)), z = (p1 - p0) / se, pv = 2 * (1 - ncdf(Math.abs(z)));
+    var tot = d.defectTypes.reduce(function (a, x) { return a + x[1]; }, 0), cum = 0, top3 = 0;
+    var pareto = d.defectTypes.slice().sort(function (x, y) { return y[1] - x[1]; }).map(function (x, i) { cum += x[1]; if (i < 3) { top3 = cum; } return { name: x[0], v: x[1], cum: cum / tot * 100 }; });
+    var sig = pv < 0.05, pvTxt = pv < 0.001 ? 'p < 0.001' : 'p = ' + pv.toFixed(3);
+    var fbs = [];
+    if (outs.length) { fbs.push(outs.map(function (h) { return h + '시'; }).join(', ') + ' 구간이 관리 상한을 넘었습니다. 우연한 변동으로 보기 어려운 이상 신호입니다.'); }
+    if (best >= 3) { fbs.push('기준선 위로 ' + best + '시간 연속입니다.'); }
+    var sigTxt = ('오늘 불량률 ' + f2(p1 * 100) + '%는 ' + b.label + ' 평균 ' + f2(p0 * 100) + '%보다 ' + (sig ? '통계적으로 유의하게 높습니다' : '높지만 우연한 차이일 수 있습니다') + ' (' + pvTxt + ').');
+    var focusTxt = '상위 3개 유형부터 잡으면 불량의 ' + Math.round(top3 / tot * 100) + '%를 다룹니다.';
+    return {
+      a: (outs.length ? outs.map(function (h) { return h + '시'; }).join(', ') + ' 구간이 관리 상한을 넘었습니다. ' : '관리 상한을 넘은 구간은 없습니다. ') + '오늘 불량률은 ' + b.label + ' 평균보다 ' + (sig ? '통계적으로 유의하게 높습니다.' : '높지만 유의한 차이는 아닙니다.'),
+      facts: ['관리 상한 초과 ' + outs.length + '구간', (sig ? '유의함 · ' : '유의하지 않음 · ') + pvTxt, '상위 3유형 ' + Math.round(top3 / tot * 100) + '%'],
+      alert: outs.length ? 0.8 : sig ? 0.5 : 0.2,
+      panel: { type: 'stats', kicker: '통계 분석', title: 'p 관리도 · 파레토 · 비교 검정', p0: p0 * 100, pts: pts, pareto: pareto, base: b.label,
+        test: { p1: p1 * 100, p0: p0 * 100, z: z, pv: pvTxt, sig: sig } },
+      actions: (outs.length ? [{ t: outs.map(function (h) { return h + '시'; }).join(', ') + ' 생산분 원인 조사 (관리 상한 초과)', who: '품질' }] : []).concat([{ t: pareto.slice(0, 3).map(function (x) { return x.name; }).join(' · ') + ' 집중 관리', who: '공정' }]),
+      feedback: (fbs.length ? fbs : [sigTxt]).concat([focusTxt]).join(' ')
+    };
+  },
+  alarms: function (d) {
+    var a = d.alarms.slice().sort(function (x, y) { return y.min - x.min; }), late = a.filter(function (x) { return x.min >= 30; }).length;
+    return {
+      a: a.length + '건이 열려 있습니다. 가장 오래된 것은 ' + a[0].eq + ' ' + a[0].what + '으로 ' + a[0].min + '분째입니다.',
+      facts: ['미조치 ' + a.length + '건', '최장 ' + a[0].min + '분', '완료 ' + d.closedAlarms + '건'],
+      alert: late ? 0.7 : 0.4,
+      panel: { type: 'table', kicker: '미조치 알람', title: '열린 알람 ' + a.length + '건 · 경과 시간', cols: ['설비', '내용', '경과', ''],
+        rows: a.map(function (x) { return { cells: [x.eq, x.what, x.min + '분'], bar: Math.min(1, x.min / 60), hot: x.min >= 30 }; }) },
+      actions: a.map(function (x) { return { t: x.eq + ' · ' + x.what + ' 확인', who: /라미|스트링거|태버/.test(x.eq) ? '설비' : '공정' }; }),
+      feedback: late ? '30분을 넘긴 알람이 ' + late + '건입니다. 담당자 재호출을 권합니다.' : '모든 알람이 30분 안에 있습니다.'
+    };
+  },
+  event: function (e) {
+    var sus = e.suspects.join('와 ');
+    return {
+      k: '새 ' + e.insp + ' 불량 · ' + e.date + ' ' + e.time, m: e.type + ' ' + e.qty + '매 · ' + e.suspects.join(' · '),
+      a: e.date + ' ' + e.time.replace(':', '시 ') + '분, ' + e.insp + '에서 ' + e.type + ' ' + e.qty + '매가 발생했습니다. ' + sus + '를 거친 모듈입니다.',
+      facts: [e.type + ' ' + e.qty + '매'].concat(e.suspects, [e.module]), alert: 1,
+      panel: { type: 'route', kicker: '모듈 공정 경로', title: e.module + ' · ' + e.insp + ' ' + e.type,
+        steps: e.route.map(function (r, i) { var last = i === e.route.length - 1, hot = e.suspects.indexOf(r[0]) >= 0; return { st: r[0], tm: r[1], sub: last ? e.type + ' ' + e.qty + '매 검출' : hot ? '거친 설비 · 확인 필요' : (r[2] || ''), hot: hot, bad: last }; }) },
+      actions: e.suspects.map(function (s) { return { t: s + ' 최근 ' + e.type + ' 이력 확인', who: '설비' }; }).concat([{ t: '같은 시간대 생산 모듈 ' + e.insp + ' 재확인', who: '품질' }]),
+      feedback: e.shiftCount >= 2 ? '이번 근무조 들어 ' + e.type + ' ' + e.shiftCount + '번째입니다. 앞선 건과 같은 설비를 거쳤는지 확인해 반복 여부를 판단하세요.' : '이번 근무조 첫 ' + e.type + '입니다. 같은 설비에서 다시 나오는지 지켜보세요.'
+    };
+  }
+};
+/* 질문 의도: 앞에서부터 키워드가 맞는 첫 의도로 답한다 */
+var QA = [
+  { q: '시간대별 불량률 보여줘', keys: ['그래프', '시간대', '시간별', '추이'], rule: 'trend' },
+  { q: '통계 분석 보여줘', keys: ['통계', '관리도', '유의', '파레토', '검정'], rule: 'stats' },
+  { q: '호기별 차이 진짜야?', keys: ['호기', '설비 비교', '차이', '분산', 'ANOVA', 'anova'], rule: 'compare' },
+  { q: '지금 불량률 어때?', keys: ['불량률', '어때', '현황'], rule: 'rate' },
+  { q: '가장 큰 문제가 뭐야?', keys: ['문제', '원인', '왜'], rule: 'issue' },
+  { q: '방금 검출된 모듈 알려줘', keys: ['검출', '모듈', '방금'], rule: 'detect' },
+  { q: '미조치 알람 있어?', keys: ['알람', '미조치', '조치'], rule: 'alarms' }
+];
+var FALLBACK = { a: '아직 이 질문은 이해하지 못해요. 불량률, 시간대별 추이, 가장 큰 문제, 방금 검출, 미조치 알람을 물어볼 수 있어요.', facts: [], alert: 0 };
+var LABEL = { idle: '무엇이든 물어보세요', listening: '듣고 있어요', thinking: '확인하는 중', speaking: '', alert: '새 불량 감지' };
+</script>
+<script>
+/* js/30-dom.js */
+/* 30-dom.js · 화면 상태와 자주 쓰는 요소 */
+/* ---------- 상태 ---------- */
+var S = { name: 'idle', level: 0.12, target: 0.12, spin: 0.25, spinT: 0.25, alert: 0, alertT: 0, t0: performance.now() }, run = 0, micIdx = 0;
+var stateEl = $('state'), qEl = $('q'), aEl = $('a'), factsEl = $('facts'), mic = $('mic'), input = $('ask');
+
+var app = document.querySelector('.app'), panel = $('panel'), pBody = $('p-body'), pKick = $('p-kick'), pTitle = $('p-title'), more = $('more'), lastPanel = null;
+function el(tag, cls, text) { var e = document.createElement(tag); if (cls) { e.className = cls; } if (text != null) { e.textContent = text; } return e; }
+</script>
+<script>
+/* js/40-panel.js */
+/* 40-panel.js · 근거 팝업 열기/닫기 + 표·마인드맵·경로·시간대 그래프 */
+function mapSVG(p) {
+  var s = '<svg class="map" viewBox="0 0 460 300" role="img" aria-label="' + p.center + ' 원인 마인드맵">', i = 0, by = [50, 150, 250];
+  p.branches.forEach(function (b, k) {
+    var y = by[k];
+    s += '<path class="link' + (b.hot ? ' hot' : '') + '" pathLength="1" style="--i:' + (i++) + '" d="M140 150 C 156 150, 154 ' + y + ', 170 ' + y + '"></path>';
+    b.leaves.forEach(function (lf, j) { var ly = y + (j ? 22 : -22); s += '<path class="link' + (b.hot && !j ? ' hot' : '') + '" pathLength="1" style="--i:' + (i++) + '" d="M290 ' + y + ' C 305 ' + y + ', 303 ' + ly + ', 318 ' + ly + '"></path>'; });
+  });
+  s += '<g class="node center" style="--i:0"><rect x="10" y="126" width="130" height="48" rx="12"></rect><text x="75" y="155" text-anchor="middle" font-weight="700">' + p.center + '</text></g>';
+  i = 1;
+  p.branches.forEach(function (b, k) {
+    var y = by[k];
+    s += '<g class="node' + (b.hot ? ' hot' : '') + '" style="--i:' + (i++) + '"><rect x="170" y="' + (y - 17) + '" width="120" height="34" rx="10"></rect><text x="230" y="' + (y + 4.5) + '" text-anchor="middle" font-weight="700">' + b.label + '</text></g>';
+    b.leaves.forEach(function (lf, j) { var ly = y + (j ? 22 : -22); s += '<g class="node' + (b.hot && !j ? ' hot' : '') + '" style="--i:' + (i++) + '"><rect x="318" y="' + (ly - 15) + '" width="138" height="30" rx="9"></rect><text class="sm" x="387" y="' + (ly + 4) + '" text-anchor="middle">' + lf + '</text></g>'; });
+  });
+  return s + '</svg>';
+}
+function openPanel(p) {
+  clearEL(); lastPanel = p; pKick.textContent = p.kicker; pTitle.textContent = p.title; pBody.textContent = '';
+  if (p.type === 'table') {
+    var tb = el('table', 'ptable'), hd = el('thead'), hr = el('tr'), bd = el('tbody'), fills = [];
+    var isNum = function (t) { return /^[+\-]?[\d.,]+\s*(%|%p|분|건|매|시)?$/.test(String(t).trim()); }, numCol = p.cols.map(function (c, k) { return p.rows.every(function (r) { return r.cells[k] == null || isNum(r.cells[k]); }); });
+    p.cols.forEach(function (c, k) { hr.appendChild(el('th', numCol[k] && c ? 'num' : '', c)); }); hd.appendChild(hr); tb.appendChild(hd);
+    p.rows.forEach(function (r, i) {
+      var tr = el('tr', 'in'), td = el('td'), bar = el('div', 'bar' + (r.hot ? ' hot' : '')), f = el('i');
+      tr.style.setProperty('--i', i); r.cells.forEach(function (c, k) { tr.appendChild(el('td', numCol[k] ? 'num' : '', c)); });
+      bar.appendChild(f); td.appendChild(bar); tr.appendChild(td); bd.appendChild(tr); fills.push([f, r.bar]);
+    });
+    tb.appendChild(bd); pBody.appendChild(tb);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { fills.forEach(function (x, i) { setTimeout(function () { x[0].style.width = Math.round(x[1] * 100) + '%'; }, reduce ? 0 : 260 + i * 60); }); }); });
+  } else if (p.type === 'chart') {
+    buildChart(p);
+  } else if (p.type === 'anova') {
+    buildAnova(p);
+  } else if (p.type === 'stats') {
+    buildStats(p);
+  } else if (p.type === 'el') {
+    buildEL(p);
+  } else if (p.type === 'route') {
+    var ol = el('ol', 'route');
+    p.steps.forEach(function (st, i) {
+      var li = el('li', st.bad ? 'bad' : st.hot ? 'hot' : ''), dot = el('span', 'dot'), mid = el('span', 'st', st.st), sub = el('span', 'sub', st.sub || '');
+      li.style.setProperty('--i', i); dot.setAttribute('aria-hidden', 'true'); mid.appendChild(sub);
+      li.appendChild(dot); li.appendChild(mid); li.appendChild(el('span', 'tm', st.tm)); ol.appendChild(li);
+    });
+    pBody.appendChild(ol);
+  } else { pBody.innerHTML = mapSVG(p); }
+  var extras = el('div', 'extras');
+  if (p.actions && p.actions.length) {
+    var sec = el('section', 'sec'), hd2 = el('div', 'sec-k'), ul = el('ul', 'acts');
+    hd2.appendChild(el('span', '', '조치 필요')); hd2.appendChild(el('span', 'cnt', p.actions.length + '건')); sec.appendChild(hd2);
+    p.actions.forEach(function (x, i) {
+      var li = el('li', 'act'), lb = el('label'), cb = el('input'), bx = el('span', 'box'), tx = el('span', 'tx', x.t), who = el('span', 'who', x.who || '');
+      cb.type = 'checkbox'; cb.id = 'act-' + i; bx.setAttribute('aria-hidden', 'true');
+      bx.innerHTML = '<svg viewBox="0 0 14 14"><path d="M2.5 7.5l3 3 6-6.5"></path></svg>';
+      lb.appendChild(cb); lb.appendChild(bx); lb.appendChild(tx); lb.appendChild(who); li.appendChild(lb); li.style.setProperty('--i', i); ul.appendChild(li);
+    });
+    sec.appendChild(ul); extras.appendChild(sec);
+  }
+  if (p.feedback) { var fb = el('div', 'fb'), fk = el('span', 'k', 'QVIS 의견 · 규칙 기반 판단'); fb.appendChild(fk); fb.appendChild(document.createTextNode(p.feedback)); extras.appendChild(fb); }
+  if (p._side) { p._side.classList.add('side-card'); extras.appendChild(p._side); }
+  if (extras.childNodes.length) { pBody.appendChild(extras); }
+  panel.classList.add('focus', 'split'); panel.classList.toggle('wide', p.type === 'chart' || p.type === 'stats' || p.type === 'anova' || p.type === 'el'); panel.classList.toggle('el', p.type === 'el'); app.classList.add('focus');
+  app.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); more.textContent = '근거 닫기';
+}
+function hm(h) { var H = Math.floor(h), M = Math.round((h - H) * 60); return (H < 10 ? '0' : '') + H + ':' + (M < 10 ? '0' : '') + M; }
+function buildChart(p) {
+  var big = window.matchMedia('(min-width: 901px)').matches, W = big ? 760 : 400, H = big ? 360 : 230, m = big ? { l: 44, r: 56, t: 22, b: 30 } : { l: 36, r: 34, t: 16, b: 26 }, x0 = 6, x1 = 15;
+  var X = function (h) { return m.l + (h - x0) / (x1 - x0) * (W - m.l - m.r); }, Y = function (v) { return m.t + (1 - v / p.yMax) * (H - m.t - m.b); };
+  var pts = function (arr) { return arr.map(function (v, i) { return X(p.hours[i]).toFixed(1) + ',' + Y(v).toFixed(1); }).join(' '); };
+  var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="시간대별 불량률. 13시 이후 목표 1.50%를 넘어 지금 3.1%">';
+  var gv = []; for (var g0 = 0; g0 <= Math.floor(p.yMax); g0++) { gv.push(g0); }
+  gv.forEach(function (v) { s += '<line class="grid" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"></line><text x="' + (m.l - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + v + '%</text>'; });
+  [6, 8, 10, 12, 14].forEach(function (h) { s += '<text x="' + X(h) + '" y="' + (H - 6) + '" text-anchor="middle">' + (h < 10 ? '0' : '') + h + '시</text>'; });
+  var ty = Y(p.target); s += '<line class="target" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + ty + '" y2="' + ty + '"></line><text class="lab" x="' + (m.l + 4) + '" y="' + (ty - 6) + '">목표 ' + p.target.toFixed(2) + '%</text>';
+  /* 목표를 넘은 구간 찾기 */
+  var cross = null, over = [];
+  for (var i = 1; i < p.today.length; i++) { if (cross === null && p.today[i - 1] <= p.target && p.today[i] > p.target) { var f = (p.target - p.today[i - 1]) / (p.today[i] - p.today[i - 1]); cross = p.hours[i - 1] + f * (p.hours[i] - p.hours[i - 1]); over.push([cross, p.target]); } if (cross !== null) { over.push([p.hours[i], p.today[i]]); } }
+  var last = p.hours.length - 1, ex = X(p.hours[last]), ey = Y(p.today[last]);
+  s += '<polygon class="wash" points="' + X(p.hours[0]) + ',' + Y(0) + ' ' + pts(p.today) + ' ' + ex + ',' + Y(0) + '"></polygon>';
+  if (over.length) { s += '<polygon class="hotwash" points="' + over.map(function (q) { return X(q[0]).toFixed(1) + ',' + Y(q[1]).toFixed(1); }).join(' ') + ' ' + ex + ',' + ty + '"></polygon>'; }
+  s += '<polyline class="usual" points="' + pts(p.usual) + '"></polyline>';
+  s += '<polyline class="today" pathLength="1" points="' + pts(p.today) + '"></polyline>';
+  if (over.length) { s += '<polyline class="over" pathLength="1" points="' + over.map(function (q) { return X(q[0]).toFixed(1) + ',' + Y(q[1]).toFixed(1); }).join(' ') + '"></polyline>'; }
+  s += '<g class="end"><circle class="ring" cx="' + ex + '" cy="' + ey + '" r="6"></circle><circle cx="' + ex + '" cy="' + ey + '" r="5" fill="#F37321" stroke="#0A1830" stroke-width="2"></circle><text class="end-lab" x="' + ex + '" y="' + (ey - 12) + '" text-anchor="middle">' + p.today[last].toFixed(1) + '%</text></g>';
+  s += '<g id="hover" style="display:none"><line class="cross" id="hv-l" y1="' + m.t + '" y2="' + Y(0) + '"></line><circle id="hv-d" r="4.5" fill="#1FCFBE" stroke="#0A1830" stroke-width="2"></circle></g>';
+  s += '<rect id="hit" x="' + m.l + '" y="' + m.t + '" width="' + (W - m.l - m.r) + '" height="' + (H - m.t - m.b) + '" fill="transparent"></rect></svg>';
+  var lg = el('div', 'legend'); [['', '오늘'], ['u', '평소 (최근 7일 같은 시간)'], ['t', '목표']].forEach(function (x) { var sp = el('span'), ic = el('i', x[0]); sp.appendChild(ic); sp.appendChild(document.createTextNode(x[1])); lg.appendChild(sp); });
+  var wrap = el('div', 'chartwrap'); wrap.innerHTML = s; var tip = el('div', 'ctip'); wrap.appendChild(tip);
+  var box = el('div', 'cmain'); box.appendChild(lg); box.appendChild(wrap); pBody.appendChild(box);
+  var svg = wrap.querySelector('svg'), hv = svg.querySelector('#hover'), hl = svg.querySelector('#hv-l'), hd = svg.querySelector('#hv-d');
+  function show(i) {
+    var x = X(p.hours[i]), y = Y(p.today[i]); hv.style.display = ''; hl.setAttribute('x1', x); hl.setAttribute('x2', x); hd.setAttribute('cx', x); hd.setAttribute('cy', y);
+    tip.textContent = ''; var bb = el('b', '', p.today[i].toFixed(2) + '%'); tip.appendChild(bb); tip.appendChild(document.createTextNode(hm(p.hours[i]) + ' · 평소 ' + p.usual[i].toFixed(2) + '%'));
+    var r = svg.getBoundingClientRect(), k = r.width / W; tip.style.left = Math.max(60, Math.min(r.width - 60, x * k)) + 'px'; tip.style.top = (y * k) + 'px'; tip.classList.add('on');
+  }
+  function near(ev) { var r = svg.getBoundingClientRect(), hx = (ev.clientX - r.left) * W / r.width, best = 0; p.hours.forEach(function (h, i) { if (Math.abs(X(h) - hx) < Math.abs(X(p.hours[best]) - hx)) { best = i; } }); return best; }
+  svg.addEventListener('pointermove', function (ev) { show(near(ev)); });
+  svg.addEventListener('pointerleave', function () { hv.style.display = 'none'; tip.classList.remove('on'); });
+}
+function closePanel() { clearEL(); app.classList.remove('open', 'focus'); panel.setAttribute('aria-hidden', 'true'); more.textContent = '근거 보기'; }
+more.addEventListener('click', function () { if (app.classList.contains('open')) { closePanel(); } else if (lastPanel) { openPanel(lastPanel); } });
+$('p-close').addEventListener('click', closePanel);
+</script>
+<script>
+/* js/41-panel-el.js */
+/* 41-panel-el.js · EL 이미지 팝업: 하프셀 그림, 검출 박스, 확대 창, 휠 확대 */
+/* EL 이미지: 실제로는 검사기 이미지 파일을 넣는다. 여기서는 하프셀 모듈(24열 × 6행, 가운데 갈림)을 예시로 그린다.
+   elGeo: 셀 (열, 행) → 이미지 안 비율 좌표. 박스·확대 창·그림이 모두 이 함수 하나를 쓴다. */
+function elGeo(p) {
+  var mx = 0.012, my = 0.022, cg = p.split ? 0.008 : 0, gap = 0.0016;
+  var cw = (1 - 2 * mx - cg) / p.cols, rh = (1 - 2 * my) / p.rows;
+  return { cw: cw, rh: rh, cell: function (c, r) {
+    var x = mx + c * cw + (p.split && c >= p.split ? cg : 0);
+    return { x: x + gap, y: my + r * rh + gap * 1.7, w: cw - gap * 2, h: rh - gap * 3.4 };
+  } };
+}
+function drawEL(cv, p) {
+  var g2 = cv.getContext('2d'), W = cv.width, H = cv.height, G = elGeo(p), seed = 7;
+  var rnd = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  g2.fillStyle = '#020407'; g2.fillRect(0, 0, W, H);
+  var bad = {}; p.cells.forEach(function (c) { bad[c.c + ',' + c.r] = c.type; });
+  for (var r = 0; r < p.rows; r++) {
+    for (var c = 0; c < p.cols; c++) {
+      var R = G.cell(c, r), x = R.x * W, y = R.y * H, w = R.w * W, h = R.h * H, L = 0.72 + rnd() * 0.2, t = bad[c + ',' + r];
+      var gr = g2.createLinearGradient(x, y, x + w * 0.4, y + h);
+      gr.addColorStop(0, 'rgb(' + Math.round(214 * L) + ',' + Math.round(220 * L) + ',' + Math.round(224 * L) + ')'); gr.addColorStop(1, 'rgb(' + Math.round(168 * L) + ',' + Math.round(176 * L) + ',' + Math.round(182 * L) + ')');
+      g2.fillStyle = gr; g2.fillRect(x, y, w, h);
+      /* 얼룩덜룩한 결정 질감 */
+      for (var k = 0; k < 46; k++) { var a = rnd(); g2.fillStyle = a < 0.75 ? 'rgba(0,0,0,' + (0.03 + rnd() * 0.07).toFixed(3) + ')' : 'rgba(255,255,255,' + (0.03 + rnd() * 0.05).toFixed(3) + ')'; g2.beginPath(); g2.ellipse(x + rnd() * w, y + rnd() * h, 2 + rnd() * 7, 2 + rnd() * 5, rnd() * 3, 0, 6.3); g2.fill(); }
+      /* 가장자리 살짝 어둡게 */
+      g2.strokeStyle = 'rgba(0,0,0,0.28)'; g2.lineWidth = 3; g2.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+      /* 가로 버스바 점선 */
+      g2.fillStyle = 'rgba(0,0,0,0.42)';
+      [0.3, 0.7].forEach(function (f) { for (var d = 0; d < w - 4; d += 9) { g2.fillRect(x + 2 + d, y + h * f - 1, 5, 2); } });
+      if (t === '미접합') { var f0 = rnd() < 0.5 ? 0.3 : 0.7, dg = g2.createLinearGradient(0, y + h * (f0 - 0.2), 0, y + h * (f0 + 0.2)); dg.addColorStop(0, 'rgba(0,0,0,0)'); dg.addColorStop(0.25, 'rgba(0,0,0,0.86)'); dg.addColorStop(0.75, 'rgba(0,0,0,0.86)'); dg.addColorStop(1, 'rgba(0,0,0,0)'); g2.fillStyle = dg; g2.fillRect(x, y + h * (f0 - 0.2), w, h * 0.4); }
+      if (t === '크랙') {
+        /* 사선 금 + 금 아래쪽이 끊겨 어두워진 쐐기 */
+        var pts = [[x + w * (0.05 + rnd() * 0.2), y + h * 0.18]], n = 7;
+        for (var q = 1; q <= n; q++) { pts.push([x + w * (0.1 + 0.85 * q / n) + (rnd() - 0.5) * w * 0.08, y + h * (0.18 + 0.5 * q / n) + (rnd() - 0.5) * h * 0.04]); }
+        g2.fillStyle = 'rgba(0,0,0,0.62)'; g2.beginPath(); g2.moveTo(pts[0][0], pts[0][1]); pts.forEach(function (pt) { g2.lineTo(pt[0], pt[1]); }); g2.lineTo(x + w, y + h); g2.lineTo(x + w * 0.35, y + h); g2.closePath(); g2.fill();
+        g2.strokeStyle = 'rgba(0,0,0,0.95)'; g2.lineWidth = 2.5; g2.beginPath(); pts.forEach(function (pt, i) { if (i) { g2.lineTo(pt[0], pt[1]); } else { g2.moveTo(pt[0], pt[1]); } }); g2.stroke();
+        g2.lineWidth = 1.5; g2.beginPath(); var b = pts[3]; g2.moveTo(b[0], b[1]); g2.lineTo(b[0] - w * 0.25, b[1] + h * 0.14); g2.lineTo(b[0] - w * 0.32, b[1] + h * 0.3); g2.stroke();
+      }
+    }
+  }
+}
+/* EL 이미지 화면
+   - 실제 이미지: canvas 자리에 <img src="검사기 이미지 경로">를 넣고, 불량 좌표(픽셀)를 이미지 크기로 나눈 비율로 넘기면 된다.
+   - 확대는 이미지 묶음(stage)에 transform을 거는 방식이라 실제 사진에도 그대로 쓴다. */
+var elTimers = [];
+function clearEL() { elTimers.forEach(clearTimeout); elTimers = []; }
+function buildEL(p) {
+  clearEL();
+  var box = el('div', 'cmain'), view = el('div', 'elview'), stage = el('div', 'elstage'), cv = document.createElement('canvas');
+  cv.width = 2400; cv.height = 1420; cv.className = 'elimg'; cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', p.module + ' EL 이미지 예시. 검출 셀 ' + p.cells.length + '개 표시');
+  drawEL(cv, p); stage.appendChild(cv);
+  /* 붙어 있는 같은 불량을 한 묶음으로 */
+  var groups = [], G = elGeo(p);
+  p.cells.forEach(function (c) {
+    if (p.cells.filter(function (o) { return o.r === c.r && o.type === c.type && o.c === c.c - 1; })[0]) { return; }
+    var grp = [c], nx = c; while ((nx = p.cells.filter(function (o) { return o.r === c.r && o.type === c.type && o.c === nx.c + 1; })[0])) { grp.push(nx); }
+    var R0 = G.cell(grp[0].c, c.r), R1 = G.cell(grp[grp.length - 1].c, c.r);
+    groups.push({ cells: grp, type: c.type, top: Math.max.apply(null, grp.map(function (o) { return o.conf; })), x: R0.x, y: R0.y, w: R1.x + R1.w - R0.x, h: R0.h,
+      label: grp[0].id + (grp.length > 1 ? '~' + grp[grp.length - 1].id.split('-')[1] : '') + ' · ' + c.type });
+  });
+  groups.sort(function (a2, b2) { return b2.top - a2.top; });
+  p.cells.forEach(function (c) {
+    var gi = groups.indexOf(groups.filter(function (g) { return g.cells.indexOf(c) >= 0; })[0]), g0 = groups[gi];
+    var bx = el('div', 'elbox ' + (c.type === '미접합' ? 'hot' : 'warn')); var RC = G.cell(c.c, c.r); bx.style.left = (RC.x * 100) + '%'; bx.style.top = (RC.y * 100) + '%';
+    bx.style.width = (RC.w * 100) + '%'; bx.style.height = (RC.h * 100) + '%'; bx.style.setProperty('--d', (300 + (c.r + 0.5) / p.rows * 900) + 'ms'); bx.dataset.g = String(gi);
+    if (g0.cells[0] === c) { var tag = el('span', 'tag', c.type + (g0.cells.length > 1 ? ' ' + g0.cells.length + '셀 · 최고 ' : ' ') + g0.top.toFixed(1) + '%'); if (c.r === 0) { tag.classList.add('below'); } bx.appendChild(tag); }
+    stage.appendChild(bx);
+  });
+  view.appendChild(stage);
+  view.appendChild(el('div', 'scan')); view.appendChild(el('div', 'grain'));
+  ['tl', 'tr', 'bl', 'br'].forEach(function (k) { view.appendChild(el('span', 'brk ' + k)); });
+  view.appendChild(el('div', 'hud h1', 'EL · ' + p.module + ' · ' + p.time));
+  var hud2 = el('div', 'hud h2', 'AI 검출 ' + p.cells.length + '셀'); view.appendChild(hud2);
+  view.appendChild(el('div', 'hud h3', '예시 렌더링 · 휠로 확대, 드래그로 이동, 더블클릭으로 원래대로'));
+  view.tabIndex = 0; view.setAttribute('aria-label', 'EL 이미지. 휠이나 + - 키로 확대, 0 키로 원래대로');
+
+  /* ---- 확대 창(팝업): 불량 묶음마다 확대 사진이 튀어나오고, 누르면 사라진다 ---- */
+  var pops = [];
+  function popFor(i) {
+    if (pops[i]) { return; }
+    seen[i] = true;
+    var g = groups[i], PW = 0.34, PH = PW * (view.clientWidth / view.clientHeight) / 1.5;
+    var card = el('button', 'elpop ' + (g.type === '미접합' ? 'hot' : 'warn')); card.type = 'button'; card.setAttribute('aria-label', g.label + ' 확대 사진. 누르면 닫힘');
+    var zc = document.createElement('canvas'); zc.width = 960; zc.height = 640;
+    var cw = G.cw * cv.width, sw = Math.max(g.w * cv.width + cw * 3, cw * 6), sh = Math.max(sw * 640 / 960, g.h * cv.height * 1.35); sw = sh * 960 / 640;
+    var sx = Math.max(0, Math.min(cv.width - sw, (g.x + g.w / 2) * cv.width - sw / 2)), sy = Math.max(0, Math.min(cv.height - sh, (g.y + g.h / 2) * cv.height - sh / 2));
+    zc.getContext('2d').drawImage(cv, sx, sy, sw, sh, 0, 0, 960, 640);
+    card.appendChild(zc); card.appendChild(el('span', 'zl', (i + 1) + '/' + groups.length + ' · ' + g.type + ' ' + g.cells.length + '셀 · ' + g.top.toFixed(1) + '%'));
+    /* 위치: 불량 반대쪽 절반에 크게. 두 번째 창은 첫 창 반대쪽 */
+    var gcx = g.x + g.w / 2, gcy = g.y + g.h / 2, other = pops.filter(function (c) { return c; })[0];
+    var side = other ? (other.dataset.side === 'left' ? 'right' : 'left') : (gcx > 0.5 ? 'left' : 'right');
+    var left = side === 'left' ? 0.015 : 1 - PW - 0.015, top = Math.max(0.12, Math.min(1 - PH - 0.03, gcy - PH / 2));
+    card.dataset.side = side; card.style.left = (left * 100) + '%'; card.style.top = (top * 100) + '%'; card.style.width = (PW * 100) + '%';
+    card.style.transformOrigin = ((gcx - left) / PW * 100).toFixed(1) + '% ' + ((gcy - top) / PH * 100).toFixed(1) + '%';
+    /* 불량 자리와 창을 잇는 선 */
+    var ex = side === 'left' ? left + PW : left, ey = top + PH / 2;
+    var ln = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); ln.setAttribute('class', 'eline ' + (g.type === '미접합' ? 'hot' : 'warn')); ln.setAttribute('viewBox', '0 0 100 100'); ln.setAttribute('preserveAspectRatio', 'none'); ln.setAttribute('aria-hidden', 'true');
+    ln.innerHTML = '<line x1="' + (gcx * 100) + '" y1="' + (gcy * 100) + '" x2="' + (ex * 100) + '" y2="' + (ey * 100) + '" pathLength="1"></line><circle cx="' + (gcx * 100) + '" cy="' + (gcy * 100) + '" r="0.6"></circle>';
+    card.addEventListener('click', function (ev) { ev.stopPropagation(); closePop(i); });
+    view.appendChild(ln); view.appendChild(card); pops[i] = card; card._line = ln;
+    requestAnimationFrame(function () { card.classList.add('on'); ln.classList.add('on'); });
+  }
+  var seq = false, seen = {};
+  function closePop(i, quiet) { var c = pops[i]; if (!c) { return; } pops[i] = null;
+    if (seq && !quiet) { var nx = -1; for (var j = 0; j < groups.length; j++) { if (!seen[j]) { nx = j; break; } } if (nx >= 0) { elTimers.push(setTimeout(function () { popFor(nx); }, 320)); } } c.classList.remove('on'); c.classList.add('off'); if (c._line) { c._line.classList.remove('on'); } setTimeout(function () { c.remove(); if (c._line) { c._line.remove(); } }, 260); }
+  function closeAllPops() { seq = false; pops.forEach(function (c, i) { if (c) { closePop(i, true); } }); }
+  if (!reduce) { groups.slice(0, 2).forEach(function (g, i) { elTimers.push(setTimeout(function () { popFor(i); }, 1500 + i * 450)); }); } else { groups.slice(0, 2).forEach(function (g, i) { popFor(i); }); }
+
+  /* ---- 휠 확대 · 드래그 이동 ---- */
+  var k = 1, tx = 0, ty = 0, drag = null, moved = false;
+  function apply(anim) {
+    var W = view.clientWidth, H = view.clientHeight;
+    tx = Math.min(0, Math.max(W - W * k, tx)); ty = Math.min(0, Math.max(H - H * k, ty));
+    stage.classList.toggle('noanim', !anim);
+    stage.style.setProperty('--k', k.toFixed(3)); stage.style.transform = 'translate(' + tx.toFixed(1) + 'px, ' + ty.toFixed(1) + 'px) scale(' + k.toFixed(3) + ')';
+    view.classList.toggle('zoomed', k > 1.01); hud2.textContent = k > 1.01 ? '×' + k.toFixed(1) + ' 확대' : 'AI 검출 ' + p.cells.length + '셀';
+  }
+  function zoomAt(mx, my, nk, anim) {
+    nk = Math.max(1, Math.min(6, nk)); if (nk > 1.01) { closeAllPops(); }
+    var sx2 = (mx - tx) / k, sy2 = (my - ty) / k; k = nk; tx = mx - sx2 * k; ty = my - sy2 * k; apply(anim);
+  }
+  view.addEventListener('wheel', function (ev) {
+    ev.preventDefault(); var r = view.getBoundingClientRect();
+    zoomAt(ev.clientX - r.left, ev.clientY - r.top, k * Math.exp(-ev.deltaY * 0.0018), true);
+  }, { passive: false });
+  view.addEventListener('pointerdown', function (ev) { if (ev.target.closest && ev.target.closest('.elpop')) { return; } drag = { x: ev.clientX, y: ev.clientY, tx: tx, ty: ty }; moved = false; });
+  view.addEventListener('pointermove', function (ev) {
+    if (!drag || k <= 1.01) { return; }
+    var dx = ev.clientX - drag.x, dy = ev.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) { moved = true; view.classList.add('dragging'); }
+    tx = drag.tx + dx; ty = drag.ty + dy; apply(false);
+  });
+  function endDrag() { drag = null; view.classList.remove('dragging'); }
+  view.addEventListener('pointerup', endDrag); view.addEventListener('pointerleave', endDrag);
+  view.addEventListener('dblclick', function () { k = 1; tx = 0; ty = 0; apply(true); });
+  view.addEventListener('click', function (ev) {
+    if (moved) { moved = false; return; }
+    var bx = ev.target.closest ? ev.target.closest('.elbox') : null;
+    if (bx && k <= 1.01) { popFor(+bx.dataset.g); }
+  });
+  view.addEventListener('keydown', function (ev) {
+    var W = view.clientWidth / 2, H = view.clientHeight / 2;
+    if (ev.key === '+' || ev.key === '=') { ev.preventDefault(); zoomAt(W, H, k * 1.4, true); }
+    else if (ev.key === '-') { ev.preventDefault(); zoomAt(W, H, k / 1.4, true); }
+    else if (ev.key === '0') { ev.preventDefault(); k = 1; tx = 0; ty = 0; apply(true); }
+    else if (ev.key === 'Escape') { closeAllPops(); }
+  });
+  box.appendChild(view);
+  var list = el('div', 'elcells');
+  groups.forEach(function (g, i) {
+    var chip = el('button', 'elchip ' + (g.type === '미접합' ? 'hot' : 'warn'), g.label + ' ' + g.top.toFixed(1) + '%'); chip.type = 'button'; chip.style.setProperty('--i', i);
+    chip.addEventListener('click', function () { seq = false; k = 1; tx = 0; ty = 0; apply(true); if (pops[i]) { closePop(i, true); return; } popFor(i); });
+    list.appendChild(chip);
+  });
+  box.appendChild(list); pBody.appendChild(box);
+}
+</script>
+<script>
+/* js/42-panel-anova.js */
+/* 42-panel-anova.js · 설비 비교 팝업(분산분석) */
+/* 설비 비교: 리지라인 분포 + F 식 + F분포 위 p값 */
+function buildAnova(p) {
+  var big = window.matchMedia('(min-width: 901px)').matches, W = 760, rowH = big ? (window.innerHeight < 900 ? 52 : 70) : 60, top = 20, gs = p.groups, A = p.A, k = gs.length, H = top + rowH * k + 34, m = { l: 70, r: 24 };
+  var all = [].concat.apply([], gs.map(function (g) { return g[1]; })), lo = Math.floor((Math.min.apply(null, all) - 0.3) * 2) / 2, hi = Math.ceil((Math.max.apply(null, all) + 0.3) * 2) / 2;
+  var X = function (v) { return m.l + (v - lo) / (hi - lo) * (W - m.l - m.r); }, bw = 0.16, dens = [], mx = 0, seed = 5, rnd = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  gs.forEach(function (g) { var row = []; for (var i = 0; i <= 80; i++) { var v = lo + (hi - lo) * i / 80, dd = g[1].reduce(function (s, u) { return s + Math.exp(-0.5 * Math.pow((v - u) / bw, 2)); }, 0); row.push([v, dd]); mx = Math.max(mx, dd); } dens.push(row); });
+  var s = '<svg class="chart anv" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + gs.map(function (g) { return g[0] + ' 평균 ' + mean(g[1]).toFixed(2) + '%'; }).join(', ') + '">';
+  for (var t = Math.ceil(lo * 2) / 2; t <= hi + 1e-9; t += 0.5) { s += '<line class="grid" x1="' + X(t) + '" x2="' + X(t) + '" y1="' + top + '" y2="' + (H - 26) + '"></line><text x="' + X(t) + '" y="' + (H - 8) + '" text-anchor="middle">' + t.toFixed(1) + '%</text>'; }
+  dens.forEach(function (row, gi) {
+    var b = top + rowH * (gi + 1) - 6, hot = gi === p.worst && p.sig, d = 'M ' + X(lo) + ' ' + b; row.forEach(function (q) { d += ' L ' + X(q[0]).toFixed(1) + ' ' + (b - q[1] / mx * (rowH - 14)).toFixed(1); }); d += ' L ' + X(hi) + ' ' + b;
+    var gm = mean(gs[gi][1]);
+    /* 이름과 평균은 글자 크기(14, 11)에 맞춰 위아래로 KIT.LABEL_GAP 이상 벌린다 */
+      s += '<text class="gname" x="0" y="' + (b - 8) + '">' + gs[gi][0] + '</text><text class="gval' + (hot ? ' hot' : '') + '" x="0" y="' + (b - 8 + KIT.LABEL_GAP + 4) + '">평균 ' + gm.toFixed(2) + '%</text>';
+    s += '<line class="base" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + b + '" y2="' + b + '"></line>';
+    s += '<path class="kd' + (hot ? ' hot' : '') + '" style="--i:' + gi + '" d="' + d + ' Z"></path><path class="kl' + (hot ? ' hot' : '') + '" pathLength="1" style="--i:' + gi + '" d="' + d + '"></path>';
+    gs[gi][1].forEach(function (v, j) { s += '<circle class="jd' + (hot ? ' hot' : '') + '" style="--i:' + (gi * 4 + j * 0.4).toFixed(1) + '" cx="' + X(v + (rnd() - 0.5) * 0.03).toFixed(1) + '" cy="' + (b - 5 - rnd() * (rowH * 0.45)).toFixed(1) + '" r="3"><title>' + gs[gi][0] + ' · ' + v.toFixed(2) + '%</title></circle>'; });
+    s += '<line class="gm" style="--i:' + gi + '" x1="' + X(gm) + '" x2="' + X(gm) + '" y1="' + b + '" y2="' + (b - rowH + 12) + '"></line>';
+    var ay = b - rowH * 0.62; if (Math.abs(X(gm) - X(A.gm)) > 8) { s += '<line class="dev' + (hot ? ' hot' : '') + '" style="--i:' + gi + '" x1="' + X(A.gm) + '" x2="' + X(gm) + '" y1="' + ay + '" y2="' + ay + '" marker-end="url(#anv-ar' + (hot ? 'h' : '') + ')"></line>'; }
+  });
+  s = s.replace('<svg class="chart anv"', '<svg class="chart anv"') + '<defs><marker id="anv-ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#1FCFBE"></path></marker><marker id="anv-arh" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#F37321"></path></marker></defs>';
+  s += '<line class="om" x1="' + X(A.gm) + '" x2="' + X(A.gm) + '" y1="' + (top - 6) + '" y2="' + (H - 26) + '"></line><text class="om-t" x="' + (X(A.gm) + 6) + '" y="' + (top + 4) + '">전체 평균 ' + A.gm.toFixed(2) + '%</text></svg>';
+  /* F 식 */
+  var fb = '<div class="fcard"><div class="mini-k">F 통계량</div><div class="frow"><span class="fF">F =</span><span class="frac"><span class="nu">그룹 간 변동 ÷ df</span><span class="de">그룹 내 변동 ÷ df</span></span></div>' +
+    '<div class="fl" style="--i:1">= <b class="nu">' + A.msb.toFixed(3) + '</b> ÷ <b class="de">' + A.msw.toFixed(3) + '</b></div><div class="fl" style="--i:2">= <b class="fv">' + A.F.toFixed(2) + '</b><span class="df">df ' + A.d1 + ', ' + A.d2 + '</span></div><div class="fx">호기 사이 차이가 호기 안의 흔들림보다 <b>' + A.F.toFixed(1) + '배</b> 큽니다.</div></div>';
+  /* F분포와 p값 */
+  /* 높은 화면은 그림을 키우고(오른쪽 단으로 보냄), 낮은 화면은 높이만 줄인다. 세로 위치는 모두 바닥선 FB 기준 */
+  var tall = window.innerHeight >= 900 && window.matchMedia('(min-width: 901px)').matches;
+  var FW = 360, FH = tall ? 150 : 118, FB = FH - 38, xm = Math.max(8, Math.ceil(A.F + 2)), FX = function (x) { return 16 + x / xm * (FW - 30); }, ymx = 0, pts = [];
+  for (var i = 1; i <= 120; i++) { var x = i / 120 * xm, y = fpdf(x, A.d1, A.d2); pts.push([x, y]); if (x > 0.3) { ymx = Math.max(ymx, y); } }
+  ymx = Math.max(ymx, Math.min(1.2, fpdf(0.05, A.d1, A.d2)));
+  var FY = function (y) { return FB - Math.min(y, ymx) / ymx * (FB - 20); }, cd = '', tail = 'M ' + FX(A.F).toFixed(1) + ' ' + FB;
+  pts.forEach(function (q, i) { cd += (i ? ' L ' : 'M ') + FX(q[0]).toFixed(1) + ' ' + FY(q[1]).toFixed(1); if (q[0] >= A.F) { tail += ' L ' + FX(q[0]).toFixed(1) + ' ' + FY(q[1]).toFixed(1); } });
+  tail += ' L ' + FX(xm) + ' ' + FB + ' Z';
+  var fc = '<div class="pcard"><div class="mini-k">F에서 p값으로</div><svg class="chart fdist" viewBox="0 0 ' + FW + ' ' + FH + '" role="img" aria-label="F ' + A.F.toFixed(2) + ' 오른쪽 꼬리 면적 p ' + pTxt(A.p) + '"><line class="axis" x1="16" x2="' + (FW - 14) + '" y1="' + FB + '" y2="' + FB + '"></line>';
+  for (var tk = 0; tk <= xm; tk += (xm > 10 ? 4 : 2)) { fc += '<text x="' + FX(tk) + '" y="' + (FB + 16) + '" text-anchor="middle">' + tk + '</text>'; }
+  fc += '<path class="tail" d="' + tail + '"></path><path class="fcurve" pathLength="1" d="' + cd + '"></path><path class="fmk" d="M ' + FX(A.F) + ' ' + FB + ' l -5 9 h 10 z"></path><text class="fv-t" x="' + FX(A.F) + '" y="' + (FB + 34) + '" text-anchor="middle">F ' + A.F.toFixed(2) + '</text>';
+  fc += '<path class="brk" d="M ' + FX(A.F) + ' ' + (FB - 24) + ' v -6 H ' + FX(xm) + ' v 6"></path><text class="pv-t" x="' + ((FX(A.F) + FX(xm)) / 2) + '" y="' + (FB - 38) + '" text-anchor="middle">p = ' + pTxt(A.p) + '</text></svg>';
+  fc += '<div class="verdict' + (p.sig ? ' sig' : '') + '">' + (p.sig ? '설비 간 차이가 우연이 아님 (5% 기준)' : '우연한 차이일 수 있음') + '</div></div>';
+  var box = el('div', 'cmain'), lg = el('div', 'legend');
+  [['k', '호기별 분포 · 점 하나 = 1시간'], ['g', '호기 평균'], ['o', '전체 평균']].forEach(function (x) { var sp = el('span'), ic = el('i', x[0]); sp.appendChild(ic); sp.appendChild(document.createTextNode(x[1])); lg.appendChild(sp); });
+  var wrap = el('div', 'chartwrap'); wrap.innerHTML = s; box.appendChild(lg); box.appendChild(wrap);
+  /* 높은 화면: p값 카드는 오른쪽 단(조치·의견 아래)으로 보내 두 단 높이를 맞춘다 */
+  var row = el('div', 'anv-row' + (tall ? ' one' : '')); row.innerHTML = tall ? fb : fb + fc; box.appendChild(row); pBody.appendChild(box);
+  if (tall) { var holder = el('div'); holder.innerHTML = fc; p._side = holder.firstChild; } else { p._side = null; }
+}
+</script>
+<script>
+/* js/43-panel-stats.js */
+/* 43-panel-stats.js · 통계 분석 팝업: p 관리도, 파레토, 두 비율 검정 */
+function buildStats(p) {
+  var big = window.matchMedia('(min-width: 901px)').matches, W = 760, H = !big ? 230 : window.innerHeight < 900 ? 188 : 300, m = { l: 44, r: 96, t: 24, b: 30 };
+  var ymax = Math.ceil(Math.max.apply(null, p.pts.map(function (q) { return Math.max(q.p, q.ucl); })) + 0.5), n = p.pts.length;
+  var X = function (i) { return m.l + (i + 0.5) / n * (W - m.l - m.r); }, Y = function (v) { return m.t + (1 - v / ymax) * (H - m.t - m.b); }, half = (W - m.l - m.r) / n / 2, x0 = m.l, x1 = W - m.r, yb = Y(0);
+  /* 관리 상한은 시간마다 n이 달라 계단 모양. 계단선 위쪽은 '관리 이탈 구역'으로 칠하고, 선이 그 구역에 들어가면 오렌지로 바뀐다 */
+  var step = '', us = p.pts.map(function (q) { return q.ucl; }), flat = Math.max.apply(null, us) - Math.min.apply(null, us) < 0.15, um = us.reduce(function (a, b) { return a + b; }, 0) / n;
+  p.pts.forEach(function (q, i) { var y = Y(flat ? um : q.ucl).toFixed(1); step += (i ? ' L ' : 'M ') + (X(i) - half).toFixed(1) + ' ' + y + ' L ' + (X(i) + half).toFixed(1) + ' ' + y; });
+  var zone = step + ' L ' + x1 + ' ' + m.t + ' L ' + x0 + ' ' + m.t + ' Z';
+  var line = p.pts.map(function (q, i) { return X(i).toFixed(1) + ',' + Y(q.p).toFixed(1); }).join(' ');
+  var s = '<svg class="chart pchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="시간별 불량률 p 관리도. 관리 상한을 넘은 구간은 오렌지">';
+  s += '<defs><linearGradient id="ps-wash" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1FCFBE" stop-opacity="0.22"></stop><stop offset="1" stop-color="#1FCFBE" stop-opacity="0"></stop></linearGradient>' +
+    '<linearGradient id="ps-zone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F37321" stop-opacity="0.16"></stop><stop offset="1" stop-color="#F37321" stop-opacity="0.04"></stop></linearGradient>' +
+    '<clipPath id="ps-clip"><path d="' + zone + '"></path></clipPath></defs>';
+  for (var v = 0; v <= ymax; v++) { s += '<line class="grid" x1="' + x0 + '" x2="' + x1 + '" y1="' + Y(v) + '" y2="' + Y(v) + '"></line><text x="' + (x0 - 10) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + v + '%</text>'; }
+  p.pts.forEach(function (q, i) { s += '<text x="' + X(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + (q.h < 10 ? '0' : '') + q.h + '시</text>'; });
+  s += '<path class="zone" d="' + zone + '" fill="url(#ps-zone)"></path><text class="zl" x="' + (x0 + 10) + '" y="' + (m.t + 16) + '">관리 이탈 구역</text>';
+  s += '<path class="ucl" d="' + step + '"></path><line class="cl" x1="' + x0 + '" x2="' + x1 + '" y1="' + Y(p.p0) + '" y2="' + Y(p.p0) + '"></line>';
+  var lu = flat ? um : p.pts[n - 1].ucl, yu = Y(lu), yc = Y(p.p0); if (Math.abs(yu - yc) < 16) { yc = yu + 16; }
+  s += '<text class="lab-u" x="' + (x1 + 10) + '" y="' + (yu + 4) + '">UCL ' + lu.toFixed(2) + '%</text><text class="lab-c" x="' + (x1 + 10) + '" y="' + (yc + 4) + '">평균 ' + p.p0.toFixed(2) + '%</text>';
+  s += '<path class="pwash" d="M ' + X(0).toFixed(1) + ' ' + yb + ' L ' + line.split(' ').join(' L ').replace(/,/g, ' ') + ' L ' + X(n - 1).toFixed(1) + ' ' + yb + ' Z" fill="url(#ps-wash)"></path>';
+  s += '<polyline class="today" pathLength="1" points="' + line + '"></polyline><polyline class="today hotline" pathLength="1" clip-path="url(#ps-clip)" points="' + line + '"></polyline>';
+  p.pts.forEach(function (q, i) {
+    if (q.out) { s += '<circle class="ring" cx="' + X(i) + '" cy="' + Y(q.p) + '" r="7"></circle>'; }
+    s += '<circle class="pt' + (q.out ? ' out' : '') + '" style="--i:' + i + '" cx="' + X(i) + '" cy="' + Y(q.p) + '" r="' + (q.out ? 6.5 : 3.8) + '"></circle>';
+    if (q.out) { s += '<text class="out-lab" x="' + X(i) + '" y="' + (Y(q.p) - 16) + '" text-anchor="middle">' + q.p.toFixed(1) + '%</text>'; }
+  });
+  s += '<g id="ps-hv" style="display:none"><line class="cross" id="ps-hl" y1="' + m.t + '" y2="' + yb + '"></line></g>';
+  s += '<rect x="' + x0 + '" y="' + m.t + '" width="' + (x1 - x0) + '" height="' + (yb - m.t) + '" fill="transparent"></rect></svg>';
+  var box = el('div', 'cmain'), lg = el('div', 'legend');
+  [['', '시간별 불량률'], ['c', p.base + ' 평균 (중심선)'], ['x', '관리 상한 UCL (3σ)'], ['z', '관리 이탈 구역']].forEach(function (x) { var sp = el('span'), ic = el('i', x[0]); sp.appendChild(ic); sp.appendChild(document.createTextNode(x[1])); lg.appendChild(sp); });
+  var wrap = el('div', 'chartwrap'); wrap.innerHTML = s; var tip = el('div', 'ctip'); wrap.appendChild(tip); box.appendChild(lg); box.appendChild(wrap);
+  var svg = wrap.querySelector('svg'), hv = svg.querySelector('#ps-hv'), hl = svg.querySelector('#ps-hl');
+  function show(i) {
+    var q = p.pts[i], x = X(i), y = Y(q.p); hv.style.display = ''; hl.setAttribute('x1', x); hl.setAttribute('x2', x);
+    tip.textContent = ''; tip.appendChild(el('b', '', q.p.toFixed(2) + '%' + (q.out ? ' · 관리 상한 초과' : ''))); tip.appendChild(document.createTextNode((q.h < 10 ? '0' : '') + q.h + '시 · ' + q.d + '/' + q.n + '매 · UCL ' + q.ucl.toFixed(2) + '%'));
+    var r = svg.getBoundingClientRect(), k = r.width / W; tip.style.left = Math.max(90, Math.min(r.width - 90, x * k)) + 'px'; tip.style.top = (y * k - 10) + 'px'; tip.classList.add('on');
+  }
+  svg.addEventListener('pointermove', function (ev) { var r = svg.getBoundingClientRect(), hx = (ev.clientX - r.left) * W / r.width; show(Math.max(0, Math.min(n - 1, Math.round((hx - m.l) / (2 * half) - 0.5)))); });
+  svg.addEventListener('pointerleave', function () { hv.style.display = 'none'; tip.classList.remove('on'); });
+  var row = el('div', 'stats-row'), par = el('div', 'pareto'), ph = el('div', 'mini-k', '불량 유형 파레토');
+  par.appendChild(ph); var plist = el('div', 'plist'), mkh = function () { var hdr = el('div', 'prow phd'); ['유형', '', '건수', '누적'].forEach(function (t) { hdr.appendChild(el('span', '', t)); }); return hdr; }; plist.appendChild(mkh()); par.appendChild(plist);
+  p.pareto.forEach(function (x, i) {
+    var r = el('div', 'prow' + (i < 3 ? ' hot' : '')), nm = el('span', 'nm', x.name), bar = el('span', 'pbar'), f = el('i'), vv = el('span', 'v', String(x.v)), cu = el('span', 'cu', Math.round(x.cum) + '%');
+    r.style.setProperty('--i', i); bar.appendChild(f); r.appendChild(nm); r.appendChild(bar); r.appendChild(vv); r.appendChild(cu); if (i === 4) { var h2 = mkh(); h2.classList.add('h2'); plist.appendChild(h2); } plist.appendChild(r);
+    setTimeout(function () { f.style.width = Math.round(x.v / p.pareto[0].v * 100) + '%'; }, reduce ? 0 : 300 + i * 60);
+  });
+  var tc = el('div', 'test' + (p.test.sig ? ' sig' : '')); tc.appendChild(el('div', 'mini-k', '오늘 vs ' + p.base));
+  var tg = el('div', 'tgrid');
+  [['오늘', f2(p.test.p1) + '%', '+' + f2(p.test.p1 - p.test.p0) + '%p', 'hot'], [p.base, f2(p.test.p0) + '%', '기준', ''], ['z 값', p.test.z.toFixed(2), '두 비율 검정', ''], ['p 값', p.test.pv.replace('p ', '').replace('= ', ''), '5% 기준', p.test.sig ? 'hot' : '']].forEach(function (x) { var t = el('div', 'tile' + (x[3] ? ' ' + x[3] : '')); t.appendChild(el('span', 'tl', x[0])); t.appendChild(el('b', '', x[1])); t.appendChild(el('span', 'ts', x[2])); tg.appendChild(t); });
+  tc.appendChild(tg);
+  tc.appendChild(el('div', 'verdict', p.test.sig ? '유의하게 높음 (5% 기준)' : '유의한 차이 없음'));
+  row.appendChild(par); p._side = tc; box.appendChild(row); pBody.appendChild(box);
+}
+</script>
+<script>
+/* js/50-app.js */
+/* 50-app.js · 답 보여주기, 읽어주기, 새 불량 알림, 자동 브리핑, 마이크, 좌우 숫자, 시계, 전체화면, 추천 질문 칩 */
+function setState(n) { S.name = n; stateEl.textContent = LABEL[n]; S.spinT = n === 'alert' ? 2.6 : n === 'thinking' ? 1.9 : n === 'listening' ? 0.5 : 0.25; if (n === 'idle') { S.alertT = 0; } if (n === 'alert') { S.alertT = 1; } mic.setAttribute('aria-pressed', n === 'listening' ? 'true' : 'false'); if (n === 'speaking' && M.phase === 'free') { M.phase = 'in'; M.time = 0; } if (reduce) { draw(performance.now()); } }
+function wait(ms) { return new Promise(function (r) { setTimeout(r, reduce ? Math.min(ms, 60) : ms); }); }
+function find(text) { var hit = null; QA.forEach(function (x) { if (!hit && x.keys.some(function (k) { return text.indexOf(k) >= 0; })) { hit = x; } }); return hit ? RULES[hit.rule](DATA) : FALLBACK; }
+
+/* ---------- 읽어주기 (브라우저 음성 합성) ---------- */
+var voiceOn = false, voiceBtn = $('voice');
+voiceBtn.addEventListener('click', function () {
+  voiceOn = !voiceOn; voiceBtn.setAttribute('aria-pressed', voiceOn ? 'true' : 'false'); voiceBtn.textContent = voiceOn ? '읽어주기 켜짐' : '읽어주기 꺼짐';
+  if (!voiceOn) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+});
+function say(text) {
+  if (!voiceOn) { return; }
+  try { var u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR'; u.rate = 1.05; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch (e) {}
+}
+
+/* 답을 화면에 내보내기: 한 글자씩 → 수치 칩 → 근거 패널 */
+function present(res, mine) {
+  setState('speaking'); S.alertT = res.alert; say(res.a);
+  var i = 0;
+  return new Promise(function (done) {
+    (function type() {
+      if (mine !== run) { return done(); }
+      i = reduce ? res.a.length : i + 1; aEl.textContent = res.a.slice(0, i);
+      if (i < res.a.length) { setTimeout(type, 34); } else { done(); }
+    })();
+  }).then(function () {
+    if (mine !== run) { return; }
+    res.facts.forEach(function (f, k) { var c = document.createElement('span'); c.className = 'fact' + (k === 0 && res.alert >= 0.7 ? ' alert' : ''); c.textContent = f; factsEl.appendChild(c); setTimeout(function () { c.classList.add('on'); }, 60 + k * 90); });
+    if (res.panel) { res.panel.actions = res.actions; res.panel.feedback = res.feedback; more.hidden = false; setTimeout(function () { if (mine === run) { openPanel(res.panel); } }, reduce ? 0 : 450); }
+    return wait(900).then(function () { if (mine === run) { setState('idle'); } });
+  });
+}
+function reset() { qEl.textContent = ''; aEl.textContent = ''; factsEl.textContent = ''; closePanel(); more.hidden = true; lastPanel = null; }
+function answer(text) {
+  var mine = ++run, res = find(text); touch(); hideAlert();
+  reset(); qEl.textContent = '“' + text + '”';
+  setState('thinking');
+  return wait(1100).then(function () { if (mine === run) { return present(res, mine); } });
+}
+
+/* ---------- 새 불량 알림 (예시 데이터: 실제로는 DB에서 새 FQC 불량을 읽어 옴) ---------- */
+var ALERTS = DATA.events.map(RULES.event);
+var alertIdx = 0, alertbar = $('alertbar'), lastTouch = performance.now() - 15000, hideT = 0;
+function touch() { lastTouch = performance.now(); }
+function hideAlert() { clearTimeout(hideT); alertbar.classList.remove('on'); }
+function fireAlert(auto) {
+  var ev = ALERTS[alertIdx++ % ALERTS.length], mine = ++run; if (auto !== true) { touch(); }
+  reset(); $('ab-k').textContent = ev.k; $('ab-m').textContent = ev.m; alertbar.classList.add('on');
+  qEl.textContent = '새 불량이 등록됐어요';
+  setState('alert');
+  return wait(1600).then(function () {
+    if (mine !== run) { return; }
+    return present(ev, mine).then(function () { if (mine === run) { clearTimeout(hideT); hideT = setTimeout(hideAlert, 8000); if (auto === true) { holdThenNext(mine); } } });
+  });
+}
+$('ab-x').addEventListener('click', hideAlert);
+['pointerdown', 'keydown'].forEach(function (t) { document.addEventListener(t, touch); });
+
+/* ---------- 자동 브리핑: 사람이 없으면 Q.V.I.S가 스스로 묻고 답한다 (AI 없이 규칙만으로) ----------
+   순서대로 한 항목씩 점검하고, 근거 패널을 10초 보여준 뒤 다음으로 넘어간다.
+   화면을 누르거나 키를 치면 15초 동안 멈춘다. 실제로는 'event' 자리에 DB의 새 불량이 끼어든다. */
+var AUTO = CONFIG.autoOrder.slice(), autoIdx = 0, autoOn = true, autoNext = performance.now() + 6000, autoBtn = $('auto');
+var ASK = {}; QA.forEach(function (x) { ASK[x.rule] = x.q; });
+function holdThenNext(mine) {
+  autoNext = performance.now() + 12000;
+  setTimeout(function () { if (mine === run && autoOn) { closePanel(); } }, 10000);
+}
+function autoAsk(rule) {
+  var mine = ++run, res = RULES[rule](DATA);
+  hideAlert(); reset(); qEl.textContent = '자동 점검 · “' + ASK[rule] + '”';
+  setState('thinking');
+  return wait(1000).then(function () { if (mine === run) { return present(res, mine).then(function () { if (mine === run) { holdThenNext(mine); } }); } });
+}
+autoBtn.addEventListener('click', function () {
+  autoOn = !autoOn; autoBtn.setAttribute('aria-pressed', autoOn ? 'true' : 'false'); autoBtn.textContent = autoOn ? '자동 브리핑 켜짐' : '자동 브리핑 꺼짐';
+  if (autoOn) { autoNext = performance.now() + 2000; lastTouch = performance.now() - 15000; }
+});
+setInterval(function () {
+  var now = performance.now();
+  if (!autoOn || reduce || S.name !== 'idle' || now < autoNext || now - lastTouch < 15000) { return; }
+  autoNext = now + 60000;
+  var step = AUTO[autoIdx++ % AUTO.length];
+  if (step === 'event') { fireAlert(true); } else { autoAsk(step); }
+}, 500);
+function listen() {
+  var mine = ++run; touch(); hideAlert(); reset(); setState('listening');
+  var said = QA[micIdx++ % QA.length].q;
+  wait(2400).then(function () { if (mine === run && S.name === 'listening') { answer(said); } });
+}
+mic.addEventListener('click', function () { if (S.name === 'listening') { run++; setState('idle'); aEl.textContent = '불량률, 호기별 차이, 가장 큰 문제, 방금 검출된 모듈, 미조치 알람을 물어볼 수 있어요.'; } else { listen(); } });
+$('form').addEventListener('submit', function (ev) { ev.preventDefault(); var v = input.value.trim(); if (v) { input.value = ''; answer(v); } });
+/* ---------- 대형 화면 좌우 숫자 (DATA에서 바로 계산) ---------- */
+function renderKPI() {
+  var d = DATA, r = d.defects / d.inspected * 100, diff = r - d.target, a = d.alarms.slice().sort(function (x, y) { return y.min - x.min; });
+  var L = [{ k: '오늘 불량률', v: r, dg: 2, u: '%', s: '목표 ' + f2(d.target) + '% · ' + (diff > 0 ? '+' : '') + f2(diff) + '%p', hot: diff > 0 },
+           { k: '검사', v: d.inspected, dg: 0, u: '매', s: '불량 ' + num(d.defects) + '매' }];
+  var R = [{ k: '미조치 알람', v: a.length, dg: 0, u: '건', s: a.length ? '최장 ' + a[0].min + '분 · ' + a[0].eq : '없음', hot: a.length && a[0].min >= 30 },
+           { k: '오늘 조치 완료', v: d.closedAlarms, dg: 0, u: '건', s: '알람 ' + (d.closedAlarms + a.length) + '건 중' }];
+  [[$('kpi-l'), L], [$('kpi-r'), R]].forEach(function (pair) {
+    pair[0].textContent = '';
+    pair[1].forEach(function (x, i) {
+      var box = el('div', 'kp' + (x.hot ? ' hot' : '')), b = el('b'), n = el('span', 'kn', reduce ? (x.dg ? x.v.toFixed(x.dg) : num(x.v)) : (x.dg ? (0).toFixed(x.dg) : '0'));
+      box.style.setProperty('--i', i); box.appendChild(el('span', 'kl', x.k)); b.appendChild(n); b.appendChild(el('span', 'ku', x.u)); box.appendChild(b); box.appendChild(el('span', 'ks', x.s)); pair[0].appendChild(box);
+      if (!reduce) { var t0 = performance.now() + 300 + i * 150; (function tick(now) { var k = Math.max(0, Math.min(1, (now - t0) / 1100)), e = 1 - Math.pow(1 - k, 3), v = x.v * e; n.textContent = x.dg ? v.toFixed(x.dg) : num(v); if (k < 1) { requestAnimationFrame(tick); } })(performance.now()); }
+    });
+  });
+}
+renderKPI();
+/* ---------- 시계 ---------- */
+(function () { var c = $('clock'), W = '일월화수목금토'; function t() { var n = new Date(), p = function (v) { return (v < 10 ? '0' : '') + v; }; c.textContent = (n.getMonth() + 1) + '.' + p(n.getDate()) + ' (' + W[n.getDay()] + ') ' + p(n.getHours()) + ':' + p(n.getMinutes()); } t(); setInterval(t, 10000); })();
+/* ---------- 전체화면 + 화면 꺼짐 방지 (현장 모니터용) ---------- */
+(function () {
+  var b = $('fs'), lock = null;
+  function wake() { if (navigator.wakeLock && document.visibilityState === 'visible') { navigator.wakeLock.request('screen').then(function (l) { lock = l; }).catch(function () {}); } }
+  function sync() { var on = !!document.fullscreenElement; b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.textContent = on ? '전체화면 끄기' : '전체화면'; }
+  b.addEventListener('click', function () {
+    if (document.fullscreenElement) { document.exitFullscreen().catch(function () {}); return; }
+    var r = document.documentElement.requestFullscreen ? document.documentElement.requestFullscreen() : null;
+    if (r && r.then) { r.then(wake).catch(function () { b.textContent = '이 창에선 전체화면 불가'; setTimeout(sync, 2200); }); }
+    wake();
+  });
+  document.addEventListener('fullscreenchange', sync);
+  document.addEventListener('visibilitychange', function () { if (lock !== null && document.visibilityState === 'visible') { wake(); } });
+})();
+QA.forEach(function (x) { var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = x.q; b.addEventListener('click', function () { answer(x.q); }); $('chips').appendChild(b); });
+(function () { var b = document.createElement('button'); b.type = 'button'; b.className = 'chip alert-chip'; b.textContent = '새 불량 알림 예시'; b.addEventListener('click', fireAlert); $('chips').appendChild(b); })();
+</script>
+<script>
+/* js/51-data-source.js */
+/* 51-data-source.js · DB 연결 자리
+   CONFIG.dataUrl(또는 주소 뒤 ?data=)에서 JSON을 읽어 DATA를 바꾼다. 실패하거나 모양이 틀리면 예시 데이터를 그대로 두고
+   오른쪽 위 배지에 이유를 표시한다. 화면 코드는 DATA만 읽으므로 DB 연결은 이 파일과 서버만 고치면 된다. */
+var DATA_URL = (function () { try { return new URLSearchParams(location.search).get('data') || CONFIG.dataUrl; } catch (e) { return CONFIG.dataUrl; } })();
+function setDataBadge(text, detail, bad) { var b = $('data-badge'); if (!b) { return; } b.textContent = text; b.title = detail || ''; b.classList.toggle('bad', !!bad); }
+function applyData(next) {
+  var errs = validateData(next);
+  if (errs.length) { setDataBadge('데이터 형식 오류 ' + errs.length + '건', '틀린 곳: ' + errs.slice(0, 8).join(', '), true); if (window.console) { console.warn('[QVIS] 데이터 형식 오류', errs); } return false; }
+  Object.keys(DATA).forEach(function (k) { delete DATA[k]; });
+  Object.keys(next).forEach(function (k) { DATA[k] = next[k]; });
+  ALERTS = DATA.events.map(RULES.event); renderKPI();
+  return true;
+}
+function pullData() {
+  if (!DATA_URL) { return Promise.resolve(false); }
+  return fetch(DATA_URL, { cache: 'no-store' }).then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+    .then(function (j) { var ok = applyData(j); if (ok) { var n = new Date(); setDataBadge('DB 연결 · ' + (n.getHours() < 10 ? '0' : '') + n.getHours() + ':' + (n.getMinutes() < 10 ? '0' : '') + n.getMinutes(), DATA_URL, false); } return ok; })
+    .catch(function (err) { setDataBadge('DB 연결 실패 · 예시 데이터', String(err && err.message || err) + ' · ' + DATA_URL, true); return false; });
+}
+pullData(); if (DATA_URL) { setInterval(pullData, CONFIG.refreshSec * 1000); }
+</script>
+<script>
+/* js/60-orb.js */
+/* 60-orb.js · 가운데 오브(구체) 그리기. 한화 Tricircle 값은 공식 CI에서 맞춘 값이니 바꾸지 않는다 */
+/* ---------- 구체 그리기 ---------- */
+var cv = $('orb'), g = cv.getContext('2d'), W = 0, dpr = 1;
+var COL = { teal: [31, 207, 190], blue: [10, 143, 203], violet: [11, 59, 143], gold: [142, 221, 187], warm: [243, 115, 33], cell: [120, 190, 220] };
+var blobs = [['teal', 0.9, 0.0, 1.0, 0.8], ['blue', -0.7, 1.7, 0.8, 1.0], ['violet', 0.55, 3.1, 1.0, 0.7], ['gold', -1.1, 4.4, 0.7, 0.9], ['warm', 0.8, 5.5, 0.9, 0.9]];
+var sheen = 0, orbit = 0, M = { phase: 'free', time: 0, next: 3.5 };
+var coreEl = document.querySelector('.core');
+var rgba = function (c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; };
+var mix = function (a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t].map(Math.round); };
+function resize() { var r = cv.getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1); W = r.width; cv.width = Math.round(W * dpr); cv.height = Math.round(W * dpr); if (reduce) { draw(performance.now()); } }
+function voice(t) { return 0.35 + 0.65 * Math.abs(Math.sin(t * 7.3) * Math.sin(t * 2.1 + 1.3) + 0.35 * Math.sin(t * 13.7)); }
+var rot = 0, last = 0;
+function draw(now) {
+  var t = (now - S.t0) / 1000, dt = Math.min(0.05, (now - last) / 1000 || 0.016); last = now;
+  S.target = S.name === 'alert' ? 0.62 + 0.28 * Math.abs(Math.sin(t * 6)) : S.name === 'idle' ? 0.12 + 0.05 * Math.sin(t * 1.2) : S.name === 'thinking' ? 0.3 + 0.08 * Math.sin(t * 9) : Math.min(1, voice(t) * (S.name === 'speaking' ? 0.8 : 1));
+  S.level += (S.target - S.level) * Math.min(1, dt * 9); S.spin += (S.spinT - S.spin) * Math.min(1, dt * 3); S.alert += (S.alertT - S.alert) * Math.min(1, dt * 2.5); rot += dt * S.spin;
+  var L = S.level, cx = W / 2, cy = W / 2, R = W / 2 * 0.94;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, W);
+  sheen += dt * (0.13 + 0.3 * L);
+
+  /* 0. 햇빛 코로나: 구체 뒤로 퍼지는 금빛과 빛살 */
+  var sun = mix(COL.gold, COL.warm, S.alert * 0.7);
+  g.globalCompositeOperation = 'lighter';
+  var cr = g.createRadialGradient(cx, cy, R * 0.5, cx, cy, R);
+  cr.addColorStop(0, rgba(sun, 0.16 + 0.14 * L)); cr.addColorStop(1, rgba(sun, 0));
+  g.fillStyle = cr; g.beginPath(); g.arc(cx, cy, R, 0, 6.2832); g.fill();
+  g.lineCap = 'round';
+  for (var q = 0; q < 56; q++) {
+    var ra = q / 56 * 6.2832 + rot * 0.25, w = 0.5 + 0.5 * Math.sin(q * 2.37 + t * 1.6), r1 = R * 0.63, r2 = R * (0.72 + 0.2 * w * (0.45 + L));
+    var lg = g.createLinearGradient(cx + Math.cos(ra) * r1, cy + Math.sin(ra) * r1, cx + Math.cos(ra) * r2, cy + Math.sin(ra) * r2);
+    lg.addColorStop(0, rgba(sun, 0.26 * w)); lg.addColorStop(1, rgba(sun, 0));
+    g.strokeStyle = lg; g.lineWidth = Math.max(1, R * 0.007); g.beginPath(); g.moveTo(cx + Math.cos(ra) * r1, cy + Math.sin(ra) * r1); g.lineTo(cx + Math.cos(ra) * r2, cy + Math.sin(ra) * r2); g.stroke();
+  }
+  g.globalCompositeOperation = 'source-over';
+
+  /* 1. 안쪽에서 일렁이는 빛 */
+  g.save(); g.beginPath(); g.arc(cx, cy, R * 0.6, 0, 6.2832); g.clip(); g.filter = 'blur(' + (R * 0.075).toFixed(1) + 'px)'; g.globalCompositeOperation = 'lighter';
+  blobs.forEach(function (b, i) {
+    var a = t * b[1] * (0.5 + S.spin * 0.5) + b[2], reach = R * (0.16 + 0.2 * L);
+    var x = cx + Math.cos(a) * reach * b[3] + Math.cos(a * 1.9 + i) * R * 0.06, y = cy + Math.sin(a * 1.2) * reach * b[4] + Math.sin(a * 2.3 + i) * R * 0.06;
+    var rad = R * (0.3 + 0.07 * Math.sin(t * 0.9 + i * 2) + 0.16 * L), k = b[0] === 'warm' ? 0.15 + 0.85 * S.alert : (S.name === 'thinking' && b[0] === 'violet' ? 1 : 0.8);
+    var gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, rgba(COL[b[0]], 0.75 * k)); gr.addColorStop(1, rgba(COL[b[0]], 0));
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, 6.2832); g.fill();
+  });
+  g.restore();
+  var cg = g.createRadialGradient(cx, cy, 0, cx, cy, R * 0.6); cg.addColorStop(0, 'rgba(7,18,38,0.55)'); cg.addColorStop(0.55, 'rgba(7,18,38,0.18)'); cg.addColorStop(1, 'rgba(7,18,38,0)');
+  g.fillStyle = cg; g.beginPath(); g.arc(cx, cy, R * 0.6, 0, 6.2832); g.fill();
+
+  /* 1-2. 태양광 셀 격자: 물결처럼 일렁이고, 햇빛 띠가 비스듬히 지나감 */
+  g.save(); g.beginPath(); g.arc(cx, cy, R * 0.6, 0, 6.2832); g.clip();
+  var N = 6, side = R * 1.2 / N, gx = cx - R * 0.6, gy = cy - R * 0.6, ch = side * 0.13, gap = Math.max(1.5, side * 0.05);
+  g.beginPath();
+  for (var ci = 0; ci < N; ci++) {
+    for (var cj = 0; cj < N; cj++) {
+      var wob = Math.sin(t * 1.4 + ci * 0.7 + cj * 0.5) * R * (0.003 + 0.012 * L), x = gx + ci * side + gap + wob, y = gy + cj * side + gap - wob, s = side - gap * 2;
+      g.moveTo(x + ch, y); g.lineTo(x + s - ch, y); g.lineTo(x + s, y + ch); g.lineTo(x + s, y + s - ch); g.lineTo(x + s - ch, y + s); g.lineTo(x + ch, y + s); g.lineTo(x, y + s - ch); g.lineTo(x, y + ch); g.closePath();
+      for (var bb = 1; bb <= 3; bb++) { g.moveTo(x + s * bb / 4, y + 1); g.lineTo(x + s * bb / 4, y + s - 1); }
+    }
+  }
+  g.lineWidth = 1; g.strokeStyle = rgba(COL.cell, 0.13); g.stroke();
+  var sp = (sheen % 1.7) - 0.35, st = function (v) { return Math.max(0, Math.min(1, v)); };
+  var sg = g.createLinearGradient(gx, gy, gx + R * 1.2, gy + R * 1.2);
+  sg.addColorStop(st(sp - 0.2), rgba(sun, 0)); sg.addColorStop(st(sp), rgba([225, 250, 242], 0.75)); sg.addColorStop(st(sp + 0.2), rgba(sun, 0));
+  g.globalCompositeOperation = 'lighter'; g.strokeStyle = sg; g.lineWidth = 1.3; g.stroke();
+  var sf = g.createLinearGradient(gx, gy, gx + R * 1.2, gy + R * 1.2);
+  sf.addColorStop(st(sp - 0.16), rgba(sun, 0)); sf.addColorStop(st(sp), rgba(sun, 0.12)); sf.addColorStop(st(sp + 0.16), rgba(sun, 0));
+  g.fillStyle = sf; g.fillRect(gx, gy, R * 1.2, R * 1.2);
+  g.restore();
+
+  /* 2. 가장자리에서 일렁이는 띠 */
+  g.globalCompositeOperation = 'lighter'; g.lineJoin = 'round';
+  var ribbons = [['teal', 3, 0.9, 0], ['blue', 5, -0.7, 1.4], ['gold', 4, 1.3, 2.6], ['violet', 6, -1.1, 4.0]];
+  ribbons.forEach(function (rb, j) {
+    var amp = R * (0.008 + 0.055 * L) * (1 - j * 0.14), col = mix(COL[rb[0]], COL.warm, j === 0 ? S.alert * 0.8 : 0);
+    g.beginPath();
+    for (var k = 0; k <= 180; k++) {
+      var th = k / 180 * 6.2832, r = R * 0.62 + amp * (Math.sin(rb[1] * th + t * rb[2] * 2 + rb[3]) * 0.65 + Math.sin((rb[1] + 2) * th - t * rb[2] * 1.3 + rb[3] * 2) * 0.35);
+      var px = cx + Math.cos(th) * r, py = cy + Math.sin(th) * r; if (k) { g.lineTo(px, py); } else { g.moveTo(px, py); }
+    }
+    g.closePath(); g.strokeStyle = rgba(col, 0.85 - j * 0.14); g.lineWidth = 2.2 - j * 0.3; g.shadowColor = rgba(col, 0.9); g.shadowBlur = 14 + 22 * L; g.stroke();
+  });
+  g.shadowBlur = 0;
+
+  /* 2-2. 세 고리 엠블럼: 크기가 다른 기울어진 타원 세 개가 아래 오른쪽으로 겹쳐 쌓이고,
+     안쪽 타원을 비켜 놓아 고리마다 한쪽은 굵고 한쪽은 가는 초승달 획이 된다.
+     큰 고리는 천천히, 안쪽 고리는 더 빨리 돌아 서로 감기듯 움직인다. */
+  orbit += dt * (0.22 + 1.5 * L + (S.name === 'thinking' ? 0.9 : 0));
+  var oc = mix([243, 115, 33], COL.warm, S.alert * 0.6), U = R * 0.5;
+  /* 합체: 돌던 고리가 마크 자세로 튕기듯 모였다가(0.75s) 잠깐 멈추고(1.6s) 다시 풀린다(0.9s).
+     대기 중에는 7초마다, 답을 시작할 때는 바로 */
+  M.time += dt;
+  if (M.phase === 'free' && S.name === 'idle') { M.next -= dt; if (M.next <= 0) { M.phase = 'in'; M.time = 0; } }
+  if (M.phase === 'in' && M.time >= 0.75) { M.phase = 'hold'; M.time = 0; }
+  else if (M.phase === 'hold' && M.time >= 1.6) { M.phase = 'out'; M.time = 0; }
+  else if (M.phase === 'out' && M.time >= 0.9) { M.phase = 'free'; M.time = 0; M.next = 7; }
+  var mg = 0, fl = M.phase === 'hold' ? Math.max(0, 1 - M.time / 0.7) : 0;
+  if (M.phase === 'in') { var mq = Math.min(1, M.time / 0.75) - 1; mg = 1 + 2.5 * mq * mq * mq + 1.5 * mq * mq; }
+  else if (M.phase === 'hold') { mg = 1; }
+  else if (M.phase === 'out') { var po = Math.min(1, M.time / 0.9); mg = 1 - po * po * (3 - 2 * po); }
+  if (reduce) { mg = 1; fl = 0; }
+  /* 한화 트라이서클: 공식 CI 이미지에서 따낸 세 고리. 값은 마크 가로폭 기준
+     [중심x, 중심y, 장반경, 단반경, 기울기, 안쪽 타원 이동x, 이동y, 안쪽 장반경 비, 단반경 비, 공식 색].
+     ① 맨 위, ② 중간, ③ 맨 아래 순서로 겹친다. mg = 1 이면 공식 마크와 같은 모양·비례·색 */
+  var TRI = [
+    [0.6487, 0.4994, 0.3306, 0.2489, -2.9913, 0.0137, -0.0286, 0.8735, 0.8043, [251, 181, 132]],
+    [0.5568, 0.6228, 0.2677, 0.2531, 2.2835, -0.0105, -0.0202, 0.8782, 0.8675, [248, 155, 108]],
+    [0.4491, 0.3772, 0.4481, 0.3119, 2.6362, 0.007, 0.0059, 0.8092, 0.9259, [243, 115, 33]]
+  ];
+  var Wm = R * 1.02, mc = Math.max(0, Math.min(1, mg));
+  g.globalCompositeOperation = 'source-over';
+  TRI.forEach(function (rg, n) {
+    var k = 2 - n, free = orbit * (1 + 0.55 * k), spin = Math.atan2(Math.sin(free), Math.cos(free)) * (1 - mg);
+    var breathe = 1 + 0.03 * Math.sin(t * 1.3 + k * 1.9) * (1 - mc) + 0.05 * L * (1 - mc) + 0.06 * fl;
+    var vx = (rg[0] - 0.5) * Wm * breathe, vy = (rg[1] - 0.457) * Wm * breathe, ca = Math.cos(spin), sa = Math.sin(spin);
+    var x = cx + vx * ca - vy * sa, y = cy + vx * sa + vy * ca, th = rg[4] + spin * 1.3;
+    var A = rg[2] * Wm * breathe, Bm = rg[3] * Wm * breathe, hx = x + (rg[5] * ca - rg[6] * sa) * Wm * breathe, hy = y + (rg[5] * sa + rg[6] * ca) * Wm * breathe;
+    var path = new Path2D(); path.ellipse(x, y, A, Bm, th, 0, 6.2832);
+    var hole = new Path2D(); hole.ellipse(hx, hy, A * rg[7], Bm * rg[8], th, 0, 6.2832); path.addPath(hole);
+    var col = rg[9];
+    g.shadowColor = rgba(col, 0.35 + 0.25 * fl); g.shadowBlur = 4 + 8 * L + 18 * fl;
+    g.globalAlpha = Math.min(1, 0.16 + 0.1 * L + 0.4 * mc);
+    g.fillStyle = rgba(col, 1); g.fill(path, 'evenodd');
+    g.shadowBlur = 0;
+    if (mc < 1 && g.createConicGradient) {
+      var sh = g.createConicGradient(orbit * 2.2 + k * 2.1, x, y);
+      sh.addColorStop(0, rgba(col, 0)); sh.addColorStop(0.8, rgba(col, 0)); sh.addColorStop(0.94, rgba([255, 240, 214], 0.9)); sh.addColorStop(1, rgba(col, 0));
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = (1 - mc) * (0.22 + 0.25 * L); g.fillStyle = sh; g.fill(path, 'evenodd'); g.globalCompositeOperation = 'source-over';
+    }
+    g.globalAlpha = 1;
+  });
+  coreEl.classList.toggle('merged', M.phase === 'hold' || (M.phase === 'in' && M.time > 0.45));
+  g.shadowBlur = 0; g.globalCompositeOperation = 'lighter';
+  if (fl > 0) {
+    g.strokeStyle = rgba(mix(oc, [255, 236, 200], 0.4), 0.4 * fl); g.lineWidth = 1.5 + R * 0.012 * fl;
+    g.beginPath(); g.arc(cx, cy, R * (0.62 + 0.3 * (1 - fl)), 0, 6.2832); g.stroke();
+  }
+
+  /* 3. 목소리 크기를 따라 움직이는 막대 */
+  var bars = 72, show = S.name === 'listening' || S.name === 'speaking' || S.name === 'alert' ? 1 : S.name === 'thinking' ? 0.35 : 0.12;
+  for (var i = 0; i < bars; i++) {
+    var th2 = i / bars * 6.2832 - 1.5708, n = 0.5 + 0.5 * Math.sin(i * 1.7 + t * 6.1) * Math.sin(i * 0.37 - t * 3.3), len = R * (0.012 + 0.085 * L * n * show);
+    var r0 = R * 0.705; g.strokeStyle = rgba(mix(COL.teal, COL.warm, S.alert * 0.6), 0.25 + 0.6 * n * show); g.lineWidth = Math.max(1.5, R * 0.011);
+    g.beginPath(); g.moveTo(cx + Math.cos(th2) * r0, cy + Math.sin(th2) * r0); g.lineTo(cx + Math.cos(th2) * (r0 + len), cy + Math.sin(th2) * (r0 + len)); g.stroke();
+  }
+
+  /* 4. 바깥 링과 눈금 */
+  g.globalCompositeOperation = 'source-over'; g.lineCap = 'round';
+  g.strokeStyle = 'rgba(169,188,203,0.28)'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, R * 0.82, 0, 6.2832); g.stroke();
+  for (var m = 0; m < 60; m++) { var th3 = m / 60 * 6.2832 + rot * 0.15, big = m % 5 === 0; g.strokeStyle = 'rgba(169,188,203,' + (big ? 0.6 : 0.28) + ')'; g.beginPath(); g.moveTo(cx + Math.cos(th3) * R * 0.86, cy + Math.sin(th3) * R * 0.86); g.lineTo(cx + Math.cos(th3) * R * (big ? 0.9 : 0.88), cy + Math.sin(th3) * R * (big ? 0.9 : 0.88)); g.stroke(); }
+  var arcCol = mix(COL.teal, COL.warm, S.alert);
+  g.strokeStyle = rgba(arcCol, 0.95); g.lineWidth = Math.max(2, R * 0.012); g.shadowColor = rgba(arcCol, 0.9); g.shadowBlur = 12;
+  g.beginPath(); g.arc(cx, cy, R * 0.95, rot, rot + 1.25); g.stroke();
+  g.beginPath(); g.arc(cx, cy, R * 0.95, rot + 3.1416, rot + 3.1416 + 0.5); g.stroke();
+  g.strokeStyle = rgba(COL.blue, 0.8); g.lineWidth = Math.max(1.5, R * 0.007); g.beginPath(); g.arc(cx, cy, R * 0.775, -rot * 1.4, -rot * 1.4 + 0.8); g.stroke();
+  g.shadowBlur = 0; g.fillStyle = rgba(arcCol, 1);
+  [rot + 1.25 + 0.12, rot + 3.1416 + 0.5 + 0.12].forEach(function (a) { g.beginPath(); g.arc(cx + Math.cos(a) * R * 0.95, cy + Math.sin(a) * R * 0.95, Math.max(1.8, R * 0.008), 0, 6.2832); g.fill(); });
+}
+</script>
+<script>
+/* js/61-sky.js */
+/* 61-sky.js · 별 배경 */
+/* ---------- 별 배경: 아주 느리게 흐르고 반짝임. 가끔 별똥별 하나 ---------- */
+var sky = $('sky'), sg = sky.getContext('2d'), stars = [], SW = 0, SH = 0, sdpr = 1, meteor = null, nextMeteor = 14;
+function makeStars() {
+  var r = sky.getBoundingClientRect(); sdpr = Math.min(2, window.devicePixelRatio || 1); SW = r.width; SH = r.height;
+  sky.width = Math.round(SW * sdpr); sky.height = Math.round(SH * sdpr);
+  var n = Math.round(SW * SH / 2600); stars = [];
+  for (var i = 0; i < n; i++) {
+    var z = Math.random(), tint = Math.random();
+    stars.push({ x: Math.random() * SW, y: Math.random() * SH, r: 0.35 + z * z * 1.2, a: 0.18 + 0.6 * z * Math.random(), v: 1.5 + 6 * z, tw: 0.6 + Math.random() * 2.2, ph: Math.random() * 6.28,
+      c: tint < 0.12 ? [255, 214, 170] : tint < 0.45 ? [190, 220, 255] : [235, 242, 250] });
+  }
+  if (reduce) { drawSky(performance.now(), 0); }
+}
+function drawSky(now, dt) {
+  var t = now / 1000; sg.setTransform(sdpr, 0, 0, sdpr, 0, 0); sg.clearRect(0, 0, SW, SH);
+  for (var i = 0; i < stars.length; i++) {
+    var st = stars[i]; st.x -= st.v * dt; if (st.x < -2) { st.x = SW + 2; st.y = Math.random() * SH; }
+    var a = st.a * (0.65 + 0.35 * Math.sin(t * st.tw + st.ph));
+    sg.fillStyle = 'rgba(' + st.c[0] + ',' + st.c[1] + ',' + st.c[2] + ',' + a.toFixed(3) + ')';
+    sg.beginPath(); sg.arc(st.x, st.y, st.r, 0, 6.2832); sg.fill();
+  }
+  if (reduce) { return; }
+  nextMeteor -= dt;
+  if (!meteor && nextMeteor <= 0) { meteor = { x: SW * (0.35 + Math.random() * 0.6), y: SH * Math.random() * 0.35, life: 0 }; nextMeteor = 18 + Math.random() * 14; }
+  if (meteor) {
+    meteor.life += dt; var k = meteor.life / 0.9, hx = meteor.x - 420 * meteor.life, hy = meteor.y + 160 * meteor.life;
+    if (k >= 1) { meteor = null; } else {
+      var tl = sg.createLinearGradient(hx, hy, hx + 90, hy - 34); tl.addColorStop(0, 'rgba(235,245,255,' + (0.7 * Math.sin(k * 3.1416)).toFixed(3) + ')'); tl.addColorStop(1, 'rgba(235,245,255,0)');
+      sg.strokeStyle = tl; sg.lineWidth = 1.3; sg.beginPath(); sg.moveTo(hx, hy); sg.lineTo(hx + 90, hy - 34); sg.stroke();
+    }
+  }
+}
+new ResizeObserver(makeStars).observe(sky); makeStars();
+</script>
+<script>
+/* js/90-boot.js */
+/* 90-boot.js · 시작: 그리기 반복 시작. 항상 마지막에 읽힌다 */
+var skyLast = 0;
+function loop(now) { drawSky(now, skyLast ? Math.min(0.05, (now - skyLast) / 1000) : 0); skyLast = now; draw(now); requestAnimationFrame(loop); }
+new ResizeObserver(resize).observe(cv); resize();
+if (reduce) { draw(performance.now()); } else { requestAnimationFrame(loop); }
+</script>
+<script>
+/* js/95-layout-check.js */
+/* 95-layout-check.js · 배치 검사기 (화면을 못 보는 사람·AI도 간격 문제를 숫자로 확인)
+   쓰는 법: 주소 뒤에 ?check=1 을 붙이면 문제 위치에 빨간 테두리와 목록이 뜬다. 테스트(npm test)도 이 함수를 쓴다.
+   잡는 것(✗ 실패): 글자끼리 겹침 · 그래프 글자가 그림 밖으로 나감 · 상자 밖으로 삐져나옴 · 말줄임(…) 잘림
+            · 한 글자만 다음 줄로 넘어감 · 팝업 안 스크롤 · 화면 밖으로 나감
+   알리는 것(△ 경고): 두 단 높이 불균형 · 표 줄 높이 과다 · 축 여백 과다 · 칸 안쪽 여백 과다 ("좁게 적당히" 기준) */
+function layoutCheck() {
+  var out = [], vw = innerWidth, vh = innerHeight;
+  function seen(e) { if (!e || !e.getBoundingClientRect) { return false; } var r = e.getBoundingClientRect(); if (r.width < 1 || r.height < 1) { return false; } for (var n = e; n && n.nodeType === 1; n = n.parentElement) { var cs = getComputedStyle(n); if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.05) { return false; } } return true; }
+  function name(e) { var s = e.tagName.toLowerCase(); if (e.id) { s += '#' + e.id; } if (typeof e.className === 'string' && e.className.trim()) { s += '.' + e.className.trim().split(/\s+/).join('.'); } else if (e.className && e.className.baseVal) { s += '.' + e.className.baseVal.trim().split(/\s+/).join('.'); } return s; }
+  function where(e) { var p = e.closest('.panel') ? '팝업' : e.closest('.dock') ? '입력줄' : e.closest('.top') ? '머리줄' : e.closest('.kpi') ? '좌우 숫자' : e.closest('.alertbar') ? '새 불량 알림' : '기본 화면'; return p + ' › ' + name(e); }
+  function txt(e) { return (e.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40); }
+  function hit(a, b, pad) { return Math.min(a.right, b.right) - Math.max(a.left, b.left) > pad && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > pad; }
+  function add(kind, e, detail) { out.push({ kind: kind, where: where(e), text: txt(e), detail: detail, el: e }); }
+  /* 1) 그래프 글자끼리 겹침, 그림 밖으로 나감 */
+  Array.prototype.forEach.call(document.querySelectorAll('svg'), function (svg) {
+    if (!seen(svg)) { return; }
+    var box = (svg.closest('.chartwrap, .pcard, .cbx, .cmain') || svg).getBoundingClientRect();
+    var ts = Array.prototype.filter.call(svg.querySelectorAll('text'), function (t) { return seen(t) && t.textContent.trim(); }).map(function (t) { return { t: t, r: t.getBoundingClientRect() }; });
+    for (var i = 0; i < ts.length; i++) {
+      for (var j = i + 1; j < ts.length; j++) { if (hit(ts[i].r, ts[j].r, 2)) { add('글자 겹침', ts[i].t, '“' + txt(ts[j].t) + '”와 겹침'); } }
+      var r = ts[i].r; if (r.left < box.left - 2 || r.right > box.right + 2 || r.top < box.top - 2 || r.bottom > box.bottom + 2) { add('그림 밖 글자', ts[i].t, '그래프 상자 밖으로 ' + Math.round(Math.max(box.left - r.left, r.right - box.right, box.top - r.top, r.bottom - box.bottom)) + 'px'); }
+    }
+  });
+  /* 2) 글자를 직접 가진 HTML 요소들 */
+  var leaves = Array.prototype.filter.call(document.querySelectorAll('body *:not(svg):not(svg *):not(script):not(style):not(canvas)'), function (e) {
+    return seen(e) && Array.prototype.some.call(e.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); });
+  });
+  leaves.forEach(function (e) {
+    var cs = getComputedStyle(e);
+    if (cs.textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth + 1) { add('말줄임 잘림', e, '글이 …로 잘림 (필요 ' + e.scrollWidth + 'px / 칸 ' + e.clientWidth + 'px)'); }
+    else if ((cs.overflowX === 'hidden' || cs.overflowX === 'clip') && e.scrollWidth > e.clientWidth + 1) { add('상자 밖 글자', e, '가로로 ' + (e.scrollWidth - e.clientWidth) + 'px 넘침'); }
+    /* 한 글자만 다음 줄 */
+    var tn = Array.prototype.filter.call(e.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); });
+    if (tn.length === 1 && /[가-힣]/.test(tn[0].textContent) && tn[0].textContent.trim().length >= 4) {
+      var rg = document.createRange(); rg.selectNodeContents(tn[0]); var rs = Array.prototype.filter.call(rg.getClientRects(), function (q) { return q.width > 0; });
+      var lines = {}; rs.forEach(function (q) { var k = Math.round(q.top / 4); lines[k] = (lines[k] || 0) + q.width; });
+      var ks = Object.keys(lines).map(Number).sort(function (a, b) { return a - b; });
+      if (ks.length >= 2 && lines[ks[ks.length - 1]] < parseFloat(cs.fontSize) * 1.6) { add('한 글자 줄바꿈', e, '마지막 줄이 ' + Math.round(lines[ks[ks.length - 1]]) + 'px뿐 (글자 1~2개)'); }
+    }
+  });
+  /* 3) 팝업 글자끼리 겹침 (서로 품지 않는 요소만) */
+  var pl = leaves.filter(function (e) { return e.closest('.panel.focus'); }).map(function (e) { return { e: e, r: e.getBoundingClientRect() }; });
+  for (var a = 0; a < pl.length; a++) { for (var b = a + 1; b < pl.length; b++) { if (!pl[a].e.contains(pl[b].e) && !pl[b].e.contains(pl[a].e) && !pl[a].e.closest('.elpop, .elview') && !pl[b].e.closest('.elpop, .elview') && hit(pl[a].r, pl[b].r, 3)) { add('글자 겹침', pl[a].e, '“' + txt(pl[b].e) + '”와 겹침'); } } }
+  /* 4) 팝업 넘침, 화면 밖 */
+  var p = document.querySelector('.app.open .panel.focus');
+  if (p && seen(p)) { if (p.scrollHeight > p.clientHeight + 1) { add('팝업 안 스크롤', p, (p.scrollHeight - p.clientHeight) + 'px 넘침: 그래프 높이 → 여백 → 겹치는 문장 순서로 줄이기'); } var pr = p.getBoundingClientRect(); if (pr.bottom > vh + 1 || pr.top < 0) { add('화면 밖', p, '팝업이 화면 밖으로 나감'); } }
+  var ask = document.getElementById('ask'); if (ask && seen(ask) && ask.getBoundingClientRect().bottom > vh + 1) { add('화면 밖', ask, '입력창이 화면 아래로 밀림 (' + Math.round(ask.getBoundingClientRect().bottom - vh) + 'px)'); }
+  if (document.documentElement.scrollHeight > vh + 1 && !document.querySelector('.app.open')) { add('화면 밖', document.body, '기본 화면이 세로로 ' + (document.documentElement.scrollHeight - vh) + 'px 넘침'); }
+  /* 5) 간격 과다 경고(△): 실패는 아니지만 "좁게 적당히" 기준보다 넓은 곳 */
+  function warn(kind, e, detail) { out.push({ kind: kind, where: where(e), text: txt(e), detail: detail, el: e, level: 'warn' }); }
+  /* 글자에 비해 너무 넓은 칸: 테두리·밑줄이 있는 칸이 420px 넘게 늘어났는데 글자는 그 25%도 안 될 때 (예: 분수선이 화면 끝까지) */
+  leaves.forEach(function (e) {
+    if (!e.closest('.app.open .panel.focus')) { return; }
+    var cs = getComputedStyle(e), r = e.getBoundingClientRect(); if (r.width < 420) { return; }
+    var lined = ['Top', 'Right', 'Bottom', 'Left'].some(function (sd) { return parseFloat(cs['border' + sd + 'Width']) >= 1 && cs['border' + sd + 'Color'] !== 'rgba(0, 0, 0, 0)'; });
+    if (!lined) { return; }
+    var rg = document.createRange(); rg.selectNodeContents(e); var tw = rg.getBoundingClientRect().width;
+    if (tw < r.width * 0.25) { warn('글자에 비해 넓은 칸', e, '칸 ' + Math.round(r.width) + 'px에 글자 ' + Math.round(tw) + 'px — 칸 폭을 줄이거나 두 칸으로 나누기'); }
+  });
+  /* EL 팝업은 이미지가 주인공이라 불균형 검사에서 뺀다 */
+  var body2 = document.querySelector('.app.open .panel.focus.split:not(.el) #p-body');
+  if (body2 && body2.children.length >= 2) { var hs = Array.prototype.map.call(body2.children, function (c) { return c.getBoundingClientRect().height; }), hi = Math.max.apply(null, hs), lo = Math.min.apply(null, hs); if (hi > 320 && lo / hi < 0.5) { warn('두 단 불균형', body2, '짧은 단이 긴 단의 ' + Math.round(lo / hi * 100) + '% (50% 이상 권장)'); } }
+  Array.prototype.forEach.call(document.querySelectorAll('.app.open .ptable tbody tr'), function (tr) { var fs = parseFloat(getComputedStyle(tr).fontSize), h = tr.getBoundingClientRect().height; if (seen(tr) && h > fs * 3.4) { warn('표 줄 높이 과다', tr, Math.round(h) + 'px (글자 ' + fs + 'px × 2.6~3.0 권장)'); } });
+  Array.prototype.forEach.call(document.querySelectorAll('.app.open svg.chart'), function (svg) { if (!seen(svg)) { return; } var r = svg.getBoundingClientRect(), xs = Array.prototype.filter.call(svg.querySelectorAll('text'), seen).map(function (t) { return t.getBoundingClientRect().left; }); if (xs.length) { var gap = Math.min.apply(null, xs) - r.left; if (gap > 28) { warn('축 여백 과다', svg, '왼쪽 글자 앞이 ' + Math.round(gap) + 'px 비어 있음 (10~24px 권장)'); } } });
+  Array.prototype.forEach.call(document.querySelectorAll('.app.open .panel.focus .fb, .app.open .panel.focus .test, .app.open .panel.focus .pareto, .app.open .panel.focus .tile, .app.open .panel.focus .fcard, .app.open .panel.focus .pcard'), function (e) { if (!seen(e)) { return; } var cs = getComputedStyle(e), p = Math.max(parseFloat(cs.paddingTop), parseFloat(cs.paddingLeft)); if (p > 18) { warn('칸 안쪽 여백 과다', e, p + 'px (10~14px 권장)'); } });
+  /* 같은 문제 중복 제거 */
+  var seenKey = {}; out = out.filter(function (x) { var k = x.kind + x.where + x.text; if (seenKey[k]) { return false; } seenKey[k] = 1; return true; });
+  return out;
+}
+/* ?check=1 이면 화면에 표시 */
+(function () {
+  if (!/[?&]check=1/.test(location.search)) { return; }
+  var box = document.createElement('div'); box.style.cssText = 'position:fixed;z-index:99;left:8px;bottom:8px;max-width:520px;max-height:40vh;overflow:auto;background:#200c04;color:#ffd6b8;border:1px solid #f37321;border-radius:10px;padding:10px 12px;font:12px/1.5 system-ui';
+  document.body.appendChild(box);
+  setInterval(function () {
+    document.querySelectorAll('[data-lc]').forEach(function (e) { e.style.outline = ''; e.removeAttribute('data-lc'); });
+    var r = layoutCheck(); r.forEach(function (x) { x.el.setAttribute('data-lc', '1'); x.el.style.outline = x.level === 'warn' ? '2px dashed #ffb385' : '2px solid #ff3b30'; });
+    box.textContent = r.length ? '배치 문제 ' + r.filter(function (x) { return x.level !== 'warn'; }).length + '건 · 간격 경고 ' + r.filter(function (x) { return x.level === 'warn'; }).length + '건\n' + r.map(function (x) { return (x.level === 'warn' ? '△ [' : '✗ [') + x.kind + '] ' + x.where + ' “' + x.text + '” — ' + x.detail; }).join('\n') : '배치 문제 없음';
+    box.style.whiteSpace = 'pre-wrap';
+  }, 1500);
+})();
+</script>
+</body>
+</html>

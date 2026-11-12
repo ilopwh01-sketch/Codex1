@@ -1,0 +1,121 @@
+/* 다듬기: 앞 파일의 규칙을 덮어쓴다. 마지막에 읽혀야 한다. 화면 크기별 조정, 통계·설비 비교·좌우 숫자 스타일 */
+/* 층 쌓기: 위에 뜨는 패널은 한 단계 밝은 네이비 + 밝은 테두리(글래스) */
+.panel { border-color: rgba(232, 240, 247, 0.09); }
+.fact, .chip, .bar { font-variant-numeric: tabular-nums; }
+/* p 관리도 다듬기 */
+.pchart .grid { opacity: 0.55; }
+.legend i.x { border-top: 2px dashed var(--warm); }
+.legend i.c { border-top: 1.5px dotted var(--ink-2); }
+.legend i.z { width: 14px; height: 10px; border: 0; border-radius: 2px; background: rgba(243, 115, 33, 0.22); }
+.chart .ucl { fill: none; stroke: var(--warm); stroke-width: 1.6; stroke-dasharray: 6 4; opacity: 0.9; }
+.chart .cl { stroke: var(--ink-2); stroke-width: 1.2; stroke-dasharray: 2 4; opacity: 0.8; }
+.pchart .zone { opacity: 0; animation: fade 500ms linear 500ms forwards; }
+.pchart .zl { fill: #FFB385; font-size: 11px; font-weight: 700; opacity: 0; animation: fade 400ms linear 900ms forwards; }
+.pchart .lab-u { fill: #FFB385; font-size: 12px; font-weight: 700; }
+.pchart .lab-c { fill: var(--ink-2); font-size: 12px; }
+.pchart .pwash { opacity: 0; animation: fade 500ms linear 800ms forwards; }
+.pchart .today { stroke-width: 2.4; }
+.pchart .hotline { stroke: var(--warm); stroke-width: 3; }
+.chart .pt { stroke: #0A1830; stroke-width: 2; }
+.chart .pt.out { fill: var(--warm); stroke-width: 2.5; }
+.pchart .out-lab { fill: #FFB385; font-size: 16px; font-weight: 700; opacity: 0; animation: fade 300ms linear 1200ms forwards; }
+.prow.phd { font-size: 11px; color: var(--muted); padding-bottom: 2px; animation: none; }
+.prow.phd span:nth-child(3), .prow.phd span:nth-child(4) { text-align: right; }
+@media (prefers-reduced-motion: reduce) { .pchart .zone, .pchart .zl, .pchart .pwash, .pchart .out-lab { animation: none; opacity: 1; } }
+/* 통계 패널 배치: 왼쪽 관리도 + 두 단 파레토, 오른쪽 조치 · 의견 · 비교 검정 */
+.stats-row { grid-template-columns: minmax(0, 1fr); }
+.plist { display: grid; grid-auto-flow: column; grid-template-rows: repeat(5, auto); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 36px; }
+.test.side-card { animation: rise 320ms var(--ease-out) both; animation-delay: 800ms; }
+@media (max-width: 700px) { .plist { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: minmax(0, 1fr); } .plist .phd.h2 { display: none; } }
+/* 디자인 점검 반영 */
+@media (min-width: 901px) and (max-width: 1599px) { .panel.focus.split.wide:not(.el) #p-body { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 28px; } }
+@media (min-width: 901px) and (max-height: 899px) { .panel.focus { padding: 20px 28px 22px; } .panel.focus.split .extras { gap: 10px; } .test, .pareto { padding: 10px 12px; } .fb { padding: 10px 12px; } .test .verdict { margin-top: 8px; } .panel.focus .panel-head { margin-bottom: 8px; } .stats-row { margin-top: 8px; } .pareto { padding: 10px 14px; } .prow { padding: 2px 0; } .panel.focus .legend { margin-bottom: 2px; } }
+.ptable th.num, .ptable td.num { text-align: right; padding-right: 18px; font-variant-numeric: tabular-nums; }
+.alertbar { top: calc(72px + env(safe-area-inset-top, 0px)); }
+.talk { transition: opacity 200ms linear; }
+/* 비교 검정: 2×2 숫자 타일 */
+.tgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.tile { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; min-width: 0; border-radius: 10px; background: rgba(232, 240, 247, 0.03); border: 1px solid var(--line); }
+.tile .tl { font-size: 11px; font-weight: 700; color: var(--muted); }
+.tile b { font-size: 19px; white-space: nowrap; line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.tile .ts { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile.hot b { color: #FFB385; }
+.tile.hot .ts { color: #FFB385; opacity: 0.8; }
+.test .verdict { margin-top: 10px; }
+.elpop .zl { font-size: clamp(11px, 0.95vw, 15px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 44px; }
+/* 한글은 단어 단위로 줄바꿈 (한 글자만 다음 줄로 넘어가지 않게) */
+.panel, .act .tx, .fb, .alertbar .m, .a { word-break: keep-all; overflow-wrap: anywhere; }
+/* 설비 비교(분산분석) */
+.legend i.k { width: 14px; height: 10px; border: 0; border-radius: 3px; background: rgba(31, 207, 190, 0.3); }
+.legend i.g { width: 0; height: 12px; border: 0; border-left: 2px solid var(--ink); }
+.legend i.o { width: 0; height: 12px; border: 0; border-left: 1.5px dashed var(--ink-2); }
+.anv .gname { fill: var(--ink); font-size: 14px; font-weight: 700; }
+.anv .gval { fill: var(--muted); font-size: 11px; }
+.anv .gval.hot { fill: #FFB385; font-weight: 700; }
+.anv .base { stroke: var(--line); stroke-width: 1; }
+.anv .kd { fill: rgba(31, 207, 190, 0.14); opacity: 0; animation: fade 500ms linear forwards; animation-delay: calc(var(--i) * 120ms + 300ms); }
+.anv .kd.hot { fill: rgba(243, 115, 33, 0.2); }
+.anv .kl { fill: none; stroke: var(--teal); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 800ms var(--ease-out) forwards; animation-delay: calc(var(--i) * 120ms + 150ms); }
+.anv .kl.hot { stroke: var(--warm); }
+.anv .jd { fill: var(--teal); opacity: 0; animation: fade 200ms linear forwards; animation-delay: calc(var(--i) * 40ms + 600ms); }
+.anv .jd.hot { fill: var(--warm); }
+.anv .gm { stroke: var(--ink); stroke-width: 2.2; opacity: 0; animation: fade 300ms linear forwards; animation-delay: calc(var(--i) * 120ms + 900ms); }
+.anv .om { stroke: var(--ink-2); stroke-width: 1.2; stroke-dasharray: 4 4; }
+.anv .om-t { fill: var(--ink-2); font-size: 11px; }
+.anv .dev { stroke: var(--teal); stroke-width: 1.6; opacity: 0; animation: fade 300ms linear forwards; animation-delay: calc(var(--i) * 120ms + 1200ms); }
+.anv .dev.hot { stroke: var(--warm); stroke-width: 2.2; }
+.anv-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px; margin-top: 12px; }
+.fcard, .pcard { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(232, 240, 247, 0.02); display: flex; flex-direction: column; gap: 8px; animation: rise 320ms var(--ease-out) both; animation-delay: 700ms; }
+.fcard .frow { display: flex; align-items: center; gap: 10px; }
+.fcard .fF { font-weight: 700; font-size: 18px; }
+.fcard .frac { flex: 1; display: flex; flex-direction: column; text-align: center; font-size: 13px; font-weight: 700; }
+.fcard .frac span { padding: 3px 0; }
+.fcard .frac .nu { border-bottom: 1.5px solid var(--ink); }
+.fcard .nu { color: var(--teal); }
+.fcard .de { color: var(--ink-2); }
+.fcard .fl { font-size: 14px; color: var(--ink-2); padding-left: 2px; animation: rise 300ms var(--ease-out) both; animation-delay: calc(var(--i) * 350ms + 1000ms); font-variant-numeric: tabular-nums; }
+.fcard .fl b { font-size: 17px; }
+.fcard .fl .fv { font-size: 26px; color: var(--ink); }
+.fcard .df { margin-left: 10px; font-size: 12px; color: var(--muted); }
+.fdist { width: 100%; height: auto; }
+.fdist .axis { stroke: var(--line); }
+.fdist .fcurve { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 900ms var(--ease-out) 900ms forwards; }
+.fdist .tail { fill: var(--warm); opacity: 0; animation: fade 400ms linear 1700ms forwards; }
+.fdist .fmk { fill: var(--ink); }
+.fdist .fv-t { fill: var(--ink); font-size: 12px; font-weight: 700; }
+.fdist .brk { fill: none; stroke: var(--warm); stroke-width: 1.4; }
+.fdist .pv-t { fill: #FFB385; font-size: 14px; font-weight: 700; }
+.pcard .verdict { padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; text-align: center; background: #15284A; color: var(--ink-2); }
+.pcard .verdict.sig { background: rgba(243, 115, 33, 0.16); color: #FFC9A3; border: 1px solid rgba(243, 115, 33, 0.5); }
+@media (max-width: 700px) { .anv-row { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .anv .kd, .anv .jd, .anv .gm, .anv .dev, .fdist .tail { animation: none; opacity: 1; } .anv .kl, .fdist .fcurve { animation: none; stroke-dashoffset: 0; } .fcard, .pcard, .fcard .fl { animation: none; } }
+/* 대형 화면 좌우 숫자: 오브 양옆의 빈 공간에 핵심 숫자 4개 */
+.kpi { position: fixed; top: 50%; z-index: 1; display: none; flex-direction: column; gap: 34px; width: clamp(210px, 16vw, 320px); transform: translateY(-46%); transition: opacity 260ms linear, visibility 0s linear 260ms; }
+@media (min-width: 1280px) and (min-height: 700px) { .kpi { display: flex; } }
+.kpi-l { left: max(32px, 4.5vw); }
+.kpi-r { right: max(32px, 4.5vw); text-align: right; }
+.app.open .kpi { opacity: 0; visibility: hidden; }
+.kp { display: flex; flex-direction: column; gap: 2px; padding-top: 14px; border-top: 1px solid var(--line); animation: rise 420ms var(--ease-out) both; animation-delay: calc(var(--i) * 120ms + 200ms); }
+.kp .kl { font-size: 14px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.02em; }
+.kp b { font-size: clamp(44px, 3.7vw, 72px); line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kp .ku { font-size: 0.36em; font-weight: 500; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+.kp .ks { font-size: 13px; color: var(--muted); }
+.kp.hot b { color: #FFB385; }
+.kp.hot .ks { color: #FFB385; }
+.kp.hot { border-top-color: rgba(243, 115, 33, 0.55); }
+.kpi-l .kp:first-child:not(.hot) b { background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.clock { font-size: 13px; font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-right: 4px; }
+@media (prefers-reduced-motion: reduce) { .kp { animation: none; } .kpi { transition: none; } }
+.fcard .fx { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); word-break: keep-all; }
+.fcard .fx b { color: var(--ink); }
+.kp b { margin-bottom: 4px; }
+@media (min-width: 901px) and (max-height: 899px) { .anv-row { margin-top: 8px; } .fcard, .pcard { padding: 10px 12px; gap: 6px; } }
+.anv-row.one { grid-template-columns: minmax(0, 1fr); }
+/* F 카드가 한 줄을 다 쓸 때: 왼쪽 식(최대 420px) · 오른쪽 숫자. 분수선이 길게 늘어지지 않게 */
+.anv-row.one .fcard { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); column-gap: var(--s6); row-gap: var(--s2); align-items: center; }
+.anv-row.one .fcard .mini-k, .anv-row.one .fcard .fx { grid-column: 1 / -1; }
+.anv-row.one .fcard .frow { grid-row: 2 / span 2; }
+.anv-row.one .fcard .fl { grid-column: 2; }
+/* 낮은 화면(1366×768 등)에서도 입력창이 한 화면에 들어오게 */
+@media (max-height: 820px) { .stage { width: min(100%, 520px, calc(100vh - 470px)); } .talk { min-height: 96px; gap: 6px; } .a { min-height: 40px; } .hint { display: none; } .app { gap: 8px; padding-block: 14px 14px; } }
+@media (max-height: 1040px) { .hint { display: none; } }

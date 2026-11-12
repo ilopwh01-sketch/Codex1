@@ -1,0 +1,236 @@
+/* 근거 팝업과 그 안의 그래프·표·EL 이미지 */
+/* 근거 패널의 공정 경로 */
+.route { list-style: none; margin: 0; padding: 0; }
+.route li { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; animation: rise 320ms var(--ease-out) both; animation-delay: calc(var(--i) * 90ms + 200ms); }
+.route li:not(:last-child)::before { content: ""; position: absolute; left: 8px; top: calc(50% + 6px); width: 2px; height: calc(100% - 12px); background: var(--line); }
+.route .dot { position: relative; z-index: 1; justify-self: center; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 2px solid #3A5480; background: var(--bg); }
+.route li.hot .dot { border-color: var(--warm); }
+.route li.bad .dot { background: var(--warm); border-color: var(--warm); box-shadow: 0 0 10px var(--warm); }
+.route .st { font-weight: 700; font-size: 14px; }
+.route .sub { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+.route li.hot .sub, .route li.bad .sub { color: #FFC9A3; }
+.route .tm { font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+/* 근거 패널의 시간대별 그래프 */
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--teal); vertical-align: middle; margin-right: 6px; }
+.legend i.u { border-top: 2px dashed #8FA3BF; }
+.legend i.t { border-top: 1.5px solid var(--ink); opacity: 0.6; }
+.chartwrap { position: relative; touch-action: pan-y; }
+.chart { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .grid { stroke: #1B2F52; stroke-width: 1; }
+.chart text { fill: var(--muted); font-family: var(--font); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart text.lab { fill: var(--ink-2); }
+.chart text.end-lab { fill: var(--ink); font-size: 13px; font-weight: 700; }
+.chart .target { stroke: var(--ink); stroke-opacity: 0.5; stroke-width: 1.2; }
+.chart .usual { fill: none; stroke: #8FA3BF; stroke-width: 2; stroke-dasharray: 5 5; opacity: 0.85; }
+.chart .today, .chart .over { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.chart .today { stroke: var(--teal); animation: draw 900ms var(--ease-out) 200ms forwards; }
+.chart .over { stroke: var(--warm); stroke-width: 2.5; animation: draw 500ms var(--ease-out) 950ms forwards; }
+.chart .wash { fill: rgba(31, 207, 190, 0.1); opacity: 0; animation: fade 400ms linear 700ms forwards; }
+.chart .hotwash { fill: rgba(243, 115, 33, 0.16); opacity: 0; animation: fade 400ms linear 1100ms forwards; }
+.chart .end { opacity: 0; animation: fade 300ms linear 1250ms forwards; }
+.chart .ring { fill: none; stroke: var(--warm); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: ping 1400ms var(--ease-out) 1300ms infinite; }
+.chart .cross { stroke: var(--ink-2); stroke-width: 1; }
+@keyframes fade { to { opacity: 1; } }
+.ctip { position: absolute; left: 0; top: 0; pointer-events: none; background: #EAF2F8; color: #071226; border-radius: 8px; padding: 6px 9px; font-size: 12px; line-height: 1.4; white-space: nowrap; opacity: 0; transform: translate(-50%, -115%); transition: opacity 100ms linear; }
+.ctip.on { opacity: 1; }
+.ctip b { display: block; font-size: 14px; }
+/* EL 이미지: 홀로그램처럼 깜빡이며 뜨고, 스캔선이 지나가면 검출 칸이 잡힌다 */
+.elview { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid rgba(31, 207, 190, 0.45); box-shadow: 0 0 0 1px rgba(31, 207, 190, 0.12), 0 0 40px rgba(31, 207, 190, 0.18); background: #020407; }
+.elimg { display: block; width: 100%; height: auto; animation: holo 700ms linear both; }
+@keyframes holo { 0% { opacity: 0; filter: brightness(2) saturate(0); } 18% { opacity: 0.7; } 30% { opacity: 0.15; } 46% { opacity: 0.9; } 60% { opacity: 0.5; } 100% { opacity: 1; filter: none; } }
+.elview .grain { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(31, 207, 190, 0.05) 0 1px, transparent 1px 4px); mix-blend-mode: screen; }
+.elview .scan { position: absolute; left: 0; right: 0; top: 0; height: 18%; pointer-events: none; background: linear-gradient(180deg, rgba(31, 207, 190, 0), rgba(31, 207, 190, 0.35) 85%, rgba(220, 252, 255, 0.9)); opacity: 0; animation: scan 900ms cubic-bezier(0.45, 0, 0.55, 1) 300ms both; }
+@keyframes scan { 0% { transform: translateY(-100%); opacity: 1; } 95% { opacity: 1; } 100% { transform: translateY(560%); opacity: 0; } }
+.elview .brk { position: absolute; width: 22px; height: 22px; border-color: var(--teal); border-style: solid; border-width: 0; }
+.brk.tl { left: 8px; top: 8px; border-left-width: 2px; border-top-width: 2px; } .brk.tr { right: 8px; top: 8px; border-right-width: 2px; border-top-width: 2px; }
+.brk.bl { left: 8px; bottom: 8px; border-left-width: 2px; border-bottom-width: 2px; } .brk.br { right: 8px; bottom: 8px; border-right-width: 2px; border-bottom-width: 2px; }
+.elview .hud { position: absolute; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: #C9F7EC; text-shadow: 0 0 6px rgba(0, 0, 0, 0.9); padding: 3px 8px; border-radius: 4px; background: rgba(2, 4, 7, 0.65); }
+.hud.h1 { left: 36px; top: 12px; } .hud.h2 { right: 36px; top: 12px; color: #FFC9A3; } .hud.h3 { left: 36px; bottom: 12px; font-weight: 500; color: var(--ink-2); }
+.elbox { position: absolute; box-sizing: border-box; border: 2px solid var(--warm); border-radius: 3px; box-shadow: 0 0 14px rgba(243, 115, 33, 0.7), inset 0 0 12px rgba(243, 115, 33, 0.35); opacity: 0; transform: scale(1.6); animation: lock 320ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--d) forwards; }
+.elbox.warn { border-color: #FFA766; box-shadow: 0 0 14px rgba(255, 167, 102, 0.6), inset 0 0 12px rgba(255, 167, 102, 0.3); }
+@keyframes lock { to { opacity: 1; transform: none; } }
+.elbox .tag { position: absolute; left: -2px; bottom: calc(100% + 4px); white-space: nowrap; font-size: 11px; font-weight: 700; color: #1A0A06; background: var(--warm); padding: 1px 6px; border-radius: 3px; }
+.elbox .tag.below { bottom: auto; top: calc(100% + 4px); }
+.elbox.warn .tag { background: #FFA766; }
+@property --k { syntax: '<number>'; inherits: true; initial-value: 1; }
+.elstage { position: relative; transform-origin: 0 0; transition: transform 140ms var(--ease-out), --k 140ms var(--ease-out); --k: 1; will-change: transform; }
+.elstage.noanim { transition: none; }
+.elview { touch-action: none; user-select: none; }
+.elview.zoomed { cursor: grab; }
+.elview.dragging { cursor: grabbing; }
+/* 확대 창: 불량 자리에서 튕기듯 튀어나오고, 누르면 줄어들며 사라진다 */
+.elpop { position: absolute; z-index: 3; width: 34%; aspect-ratio: 3 / 2; padding: 0; border-radius: 12px; overflow: hidden; cursor: pointer; background: #020407; border: 2px solid var(--warm);
+  box-shadow: 0 0 0 4px rgba(243, 115, 33, 0.14), 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 26px rgba(243, 115, 33, 0.45); opacity: 0; transform: scale(0.2); transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 160ms linear; }
+.elpop.warn { border-color: #FFA766; box-shadow: 0 0 0 4px rgba(255, 167, 102, 0.14), 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 26px rgba(255, 167, 102, 0.4); }
+.elpop.on { opacity: 1; transform: none; }
+.elpop.off { opacity: 0; transform: scale(0.3); transition: transform 240ms cubic-bezier(0.4, 0, 1, 1), opacity 200ms linear 40ms; }
+.elpop:hover { filter: brightness(1.08); }
+.elpop canvas { display: block; width: 100%; height: 100%; }
+.elpop .zl { position: absolute; left: 0; right: 0; bottom: 0; padding: 7px 12px; font-size: 15px; font-weight: 700; text-align: left; background: rgba(2, 4, 7, 0.78); color: #FFD6B8; }
+.elpop.warn .zl { color: #FFE0C2; }
+.eline { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
+.eline line { stroke: var(--warm); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 380ms var(--ease-out); }
+.eline circle { fill: var(--warm); opacity: 0; transition: opacity 200ms linear; }
+.eline.warn line { stroke: #FFA766; } .eline.warn circle { fill: #FFA766; }
+.eline.on line { stroke-dashoffset: 0; } .eline.on circle { opacity: 1; }
+.elpop::after { content: "×"; position: absolute; right: 8px; top: 8px; width: 30px; height: 30px; line-height: 28px; border-radius: 50%; font-size: 20px; color: #fff; background: rgba(2, 4, 7, 0.6); }
+.elview { cursor: zoom-in; }
+.elview.zoomed { cursor: zoom-out; }
+.elstage .elbox { border-width: calc(2px / var(--k)); border-radius: calc(3px / var(--k)); }
+.elstage .elbox .tag { font-size: calc(11px / var(--k)); padding: calc(1px / var(--k)) calc(6px / var(--k)); bottom: calc(100% + 4px / var(--k)); border-radius: calc(3px / var(--k)); }
+.elstage .elbox .tag.below { top: calc(100% + 4px / var(--k)); }
+.elview .reticle { position: absolute; left: 50%; top: 50%; width: 46%; height: 70%; transform: translate(-50%, -50%) scale(1.25); border: 1px solid rgba(31, 207, 190, 0.75); border-radius: 10px; opacity: 0; pointer-events: none; box-shadow: 0 0 30px rgba(31, 207, 190, 0.35); }
+.elview .reticle.on { animation: reticle 900ms cubic-bezier(0.2, 0.8, 0.2, 1) 400ms both; }
+@keyframes reticle { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); } 35% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); } }
+button.elchip { background: transparent; cursor: pointer; font-family: inherit; }
+button.elchip:hover { background: rgba(255, 255, 255, 0.06); }
+.elzoom { position: absolute; right: 14px; bottom: 14px; width: 24%; aspect-ratio: 1; border-radius: 10px; overflow: hidden; border: 2px solid var(--warm); box-shadow: 0 0 24px rgba(243, 115, 33, 0.5); opacity: 0; transform: translateY(12px) scale(0.85); animation: lock 380ms cubic-bezier(0.34, 1.56, 0.64, 1) 1450ms forwards; }
+.elzoom canvas { display: block; width: 100%; height: 100%; }
+.elzoom .zl { position: absolute; left: 0; right: 0; bottom: 0; font-size: 11px; font-weight: 700; text-align: center; padding: 3px; background: rgba(2, 4, 7, 0.75); color: #FFD6B8; }
+.elcells { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.elchip { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid #FFA766; color: #FFE0C2; animation: rise 280ms var(--ease-out) both; animation-delay: calc(var(--i) * 60ms + 1300ms); }
+.elchip.hot { border-color: var(--warm); color: #FFC9A3; }
+.panel.focus .elview .hud { font-size: 13px; }
+/* 통계 분석 */
+.legend i.c { border-top: 1px solid #B4C3D6; }
+.legend i.x { border-top: 2px solid #FF9A5C; }
+.chart .ucl { fill: none; stroke: #FF9A5C; stroke-width: 1.5; opacity: 0.85; }
+.chart .cl { stroke: #B4C3D6; stroke-width: 1; }
+.chart .pt { fill: var(--teal); stroke: #0D1C38; stroke-width: 2; opacity: 0; animation: fade 200ms linear forwards; animation-delay: calc(var(--i) * 70ms + 500ms); }
+.chart .pt.out { fill: var(--warm); }
+.stats-row { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; margin-top: 12px; }
+.mini-k { font-size: 12px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; }
+.pareto, .test { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); }
+.prow { display: grid; grid-template-columns: 92px minmax(0, 1fr) 30px 40px; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0; animation: rise 300ms var(--ease-out) both; animation-delay: calc(var(--i) * 60ms + 300ms); }
+.prow .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow .pbar { height: 8px; border-radius: 4px; background: #15284A; overflow: hidden; }
+.prow .pbar i { display: block; width: 0; height: 100%; border-radius: 4px; background: #3A6688; transition: width 600ms var(--ease-out); }
+.prow.hot .pbar i { background: var(--warm); }
+.prow .v, .prow .cu { text-align: right; font-variant-numeric: tabular-nums; }
+.prow .cu { color: var(--muted); }
+.test .trow { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--line); }
+.test .trow:first-of-type { border-top: 0; }
+.test .trow span { color: var(--muted); }
+.test .trow b { font-variant-numeric: tabular-nums; }
+.test .verdict { margin-top: 8px; padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; text-align: center; background: #15284A; color: var(--ink-2); }
+.test.sig .verdict { background: rgba(243, 115, 33, 0.16); color: #FFC9A3; border: 1px solid rgba(243, 115, 33, 0.5); }
+@media (max-width: 560px) { .stats-row { grid-template-columns: minmax(0, 1fr); } }
+/* 조치 필요 · QVIS 의견 */
+.sec { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sec-k { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: #FFB385; }
+.sec-k .cnt { color: var(--muted); letter-spacing: 0; }
+.acts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.act { animation: rise 320ms var(--ease-out) both; animation-delay: calc(var(--i) * 70ms + 500ms); }
+.act label { position: relative; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); cursor: pointer; transition: background-color 100ms linear, border-color 100ms linear; }
+.act label:hover { border-color: #2E4A78; background: rgba(255, 255, 255, 0.04); }
+.act input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.act .box { width: 18px; height: 18px; flex-shrink: 0; box-sizing: border-box; border-radius: 5px; border: 1.5px solid var(--muted); display: grid; place-items: center; transition: background-color 120ms linear, border-color 120ms linear; }
+.act .box svg { width: 12px; height: 12px; fill: none; stroke: #06203A; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.act .box path { stroke-dasharray: 18; stroke-dashoffset: 18; transition: stroke-dashoffset 240ms cubic-bezier(0.65, 0, 0.35, 1); }
+.act input:checked + .box { background: var(--teal); border-color: var(--teal); }
+.act input:checked + .box path { stroke-dashoffset: 0; }
+.act input:focus-visible + .box { outline: 2px solid var(--teal); outline-offset: 2px; }
+.act .tx { flex: 1; min-width: 0; font-size: 14px; transition: color 150ms linear; }
+.act input:checked ~ .tx { color: var(--muted); text-decoration: line-through; }
+.act .who { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.fb { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(31, 207, 190, 0.28); background: rgba(31, 207, 190, 0.06); font-size: 14px; line-height: 1.6; word-break: keep-all; animation: rise 320ms var(--ease-out) both; animation-delay: 700ms; }
+.fb .k { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700; color: var(--teal); }
+.mode { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.mode i { width: 7px; height: 7px; border-radius: 50%; background: #8FA3BF; }
+/* 근거 패널: 넓은 화면에서는 오른쪽에서 들어오고 구체가 왼쪽으로 비켜남 */
+.main { position: relative; }
+.center-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms linear; }
+.panel { position: absolute; right: 0; top: 50%; width: min(440px, 38%); max-height: calc(100vh - 120px); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; padding: 18px 20px 20px; border-radius: 16px; background: linear-gradient(180deg, rgba(14, 28, 54, 0.80), rgba(5, 12, 26, 0.90)); border: 1px solid var(--line); -webkit-backdrop-filter: blur(18px) saturate(130%); backdrop-filter: blur(18px) saturate(130%); box-shadow: inset 0 1px 0 rgba(232, 240, 247, 0.06), 0 24px 70px rgba(0, 0, 0, 0.55);
+  transform: translate(calc(100% + 48px), -50%); opacity: 0; visibility: hidden; transition: transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms linear, visibility 0s linear 480ms; }
+.app.open .panel { transform: translate(0, -50%); opacity: 1; visibility: visible; transition: transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms linear, visibility 0s; }
+@media (min-width: 901px) {
+  .app.open .center-col { transform: translateX(min(-220px, -18vw)); }
+  /* 그래프는 가운데 크게 띄우고, 구체는 뒤로 물러남 */
+  .app.open .main { z-index: 5; }
+  .panel.focus { position: fixed; top: calc(76px + env(safe-area-inset-top, 0px)); left: 50%; right: auto; width: min(1680px, calc(100% - 40px)); max-height: calc(100vh - 76px - 90px); padding: 26px 36px 28px; transform-origin: 50% 0; transform: translate(-50%, 12px) scale(0.97); }
+  .app.open .panel.focus { transform: translate(-50%, 0) scale(1); }
+  .app.open.focus .talk { visibility: hidden; opacity: 0; }
+  .app.open.focus .chips, .app.open.focus .hint { display: none; }
+  .app .panel.focus.split.el #p-body { grid-template-columns: minmax(0, calc((100vh - 400px) * 1.69)) minmax(340px, 1fr); }
+  .app.open.focus .center-col { transform: scale(0.94); opacity: 0.07; }
+  .panel.focus .panel-head h2 { font-size: 26px; }
+  .panel.focus .panel-head .k { font-size: 14px; }
+  .panel.focus .panel-head { margin-bottom: 18px; }
+  .panel.focus .legend { font-size: 14px; margin-bottom: 10px; }
+  .panel.focus .extras { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .panel.focus .extras .sec { margin-top: 0; padding-top: 0; border-top: 0; }
+  .panel.focus .extras .fb { margin-top: 0; }
+  /* 표·마인드맵·공정 경로: 왼쪽 근거, 오른쪽 조치와 의견 */
+  .panel.focus.split #p-body { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  .panel.focus.split.wide #p-body { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
+  .panel.focus.split.el #p-body { grid-template-columns: minmax(0, 1fr) 340px; }
+  .panel.focus.split .extras { display: flex; flex-direction: column; align-items: stretch; gap: 14px; margin-top: 0; padding: 0 0 0 28px; border-top: 0; border-left: 1px solid var(--line); }
+  .panel.focus .ptable { font-size: 17px; }
+  .panel.focus .ptable th { font-size: 13px; }
+  .panel.focus .ptable td { padding: 13px 8px; }
+  .panel.focus .ptable .bar { height: 8px; min-width: 90px; }
+  .panel.focus .route li { padding: 11px 0; }
+  .panel.focus .route .st { font-size: 18px; }
+  .panel.focus .route .sub { font-size: 14px; }
+  .panel.focus .route .tm { font-size: 16px; }
+  .panel.focus .act .tx, .panel.focus .fb { font-size: 16px; }
+  .panel.focus .prow, .panel.focus .test .trow { font-size: 14px; }
+  .panel.focus .prow { grid-template-columns: 104px minmax(0, 1fr) 30px 42px; }
+  .panel.focus .act label { min-height: 50px; }
+  .panel.focus .sec-k, .panel.focus .fb .k { font-size: 14px; }
+}
+@media (max-width: 900px) {
+  .panel { position: static; width: 100%; max-width: 760px; transform: none; display: none; }
+  .app.open .panel { display: block; transform: none; animation: rise 360ms var(--ease-out); }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.panel-head .k { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--teal); }
+.panel-head h2 { margin: 2px 0 0; font-size: 17px; font-weight: 700; }
+.x { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--line); background: transparent; cursor: pointer; display: grid; place-items: center; }
+.x svg { width: 14px; height: 14px; fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linecap: round; }
+.ptable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ptable th { text-align: left; font-size: 11px; font-weight: 700; color: var(--muted); padding: 0 6px 8px; }
+.ptable td { padding: 8px 6px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ptable td:nth-child(2) { white-space: normal; }
+.ptable tr.in { animation: rise 320ms var(--ease-out) both; animation-delay: calc(var(--i) * 60ms + 200ms); }
+.ptable .bar { height: 6px; min-width: 56px; border-radius: 3px; background: #15284A; overflow: hidden; }
+.ptable .bar i { display: block; width: 0; height: 100%; border-radius: 3px; background: var(--teal); transition: width 600ms var(--ease-out); }
+.ptable .bar.hot i { background: var(--warm); }
+.map { display: block; width: 100%; height: auto; }
+.map .link { fill: none; stroke: #2A4572; stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 600ms var(--ease-out) forwards; animation-delay: calc(var(--i) * 90ms + 200ms); }
+.map .link.hot { stroke: var(--warm); stroke-width: 3; }
+.map .node { opacity: 0; transform-box: fill-box; transform-origin: center; animation: pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; animation-delay: calc(var(--i) * 90ms + 300ms); }
+.map rect { fill: #12264A; stroke: #2A4572; }
+.map .hot rect { fill: #2A1712; stroke: var(--warm); }
+.map .center rect { fill: #0F3346; stroke: var(--teal); }
+.map text { fill: var(--ink); font-family: var(--font); font-size: 13px; }
+.map text.sm { fill: var(--ink-2); font-size: 12px; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+.more { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--teal); cursor: pointer; transition: transform 100ms var(--ease-out), border-color 100ms linear; }
+.more:hover { border-color: var(--teal); }
+.more:active { transform: scale(0.96); }
+@media (prefers-reduced-motion: reduce) {
+  .fact, .chip, .mic, .send, .center-col, .panel, .app.open .panel, .ptable .bar i { transition: none; }
+  .ptable tr.in, .app.open .panel { animation: none; }
+  .map .link { animation: none; stroke-dashoffset: 0; }
+  .map .node { animation: none; opacity: 1; }
+  .route li { animation: none; }
+  .act, .fb, .prow, .elchip { animation: none; }
+  .elimg, .elview .scan { animation: none; }
+  .elview .scan { display: none; }
+  .elbox, .elzoom { animation: none; opacity: 1; transform: none; }
+  .elstage { transition: none; }
+  .elpop, .elpop.off { transition: none; }
+  .elview .reticle.on { animation: none; }
+  .chart .pt { animation: none; opacity: 1; }
+  .prow .pbar i { transition: none; }
+  .act .box path { transition: none; }
+  .chart .today, .chart .over { animation: none; stroke-dashoffset: 0; }
+  .chart .wash, .chart .hotwash, .chart .end { animation: none; opacity: 1; }
+  .chart .ring { animation: none; }
+  .alertbar, .alertbar.on { transition: none; }
+  .alertbar .pulse::after { animation: none; }
+}

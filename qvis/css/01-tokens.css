@@ -1,0 +1,13 @@
+/* 색·글자 변수. 색을 바꿀 때는 이 파일만 고친다 (4톤 규칙: AGENTS.md) */
+/* Layout: 어두운 한 화면. 가운데 일렁이는 구체 → 그 아래 질문과 답 → 맨 아래 추천 질문과 입력창. 어두운 화면 하나로 고정. */
+:root {
+  color-scheme: dark;
+  --bg: #071226; --panel: #0D1C38; --line: #1B2F52; --ink: #E8F0F7; --ink-2: #B4C3D6; --muted: #8FA3BF;
+  --teal: #1FCFBE; --blue: #0A8FCB; --violet: #0B3B8F; --gold: #FFA766; --warm: #F37321;
+  /* 4톤 규칙: 네이비 바탕 · 미스트 글자 · 민트(→청록→블루 그라데이션) 조작/정상 · 오렌지 불량/알람 */
+  --grad: linear-gradient(90deg, #8EDDBB, #14C3B4 35%, #0A8FCB 70%, #0B3B8F);
+  --brand-1: #1DC0BA; --brand-2: #1095C6;
+  --font: 'Noto Sans KR', system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --display: 'Space Grotesk', 'Noto Sans KR', system-ui, sans-serif;
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+}
